@@ -1281,7 +1281,10 @@ async def event_scheduler():
 
 @bot.command(name="CH")
 async def create_hero(ctx):
-    msg = """
+    class_rank_lines = "\n".join([f"{threshold:+.2f} → {name}" for threshold, name in CLASS_TIERS])
+    rarity_rank_lines = "\n".join([f"{threshold:+.2f} → {name}" for threshold, name in RARITY_TIERS])
+
+    msg = f"""
 **Hero Creation Format**
 Send your hero like this:
 
@@ -1314,6 +1317,12 @@ Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, L
 Classes:
 Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander
 *Class roll range: -0.35 to 0.35*
+
+Class Ranks:
+{class_rank_lines}
+
+Overall Rarity Ranks:
+{rarity_rank_lines}
 
 Every 10th roll is a Lucky Roll with a higher chance to get a better rarity.
 Every roll has a 5% chance to be Shiny, which is a special cosmetic trait that does not affect rarity but is noted in the hero's details.
@@ -1645,11 +1654,13 @@ async def on_message(message):
             if is_shiny:
                 embed.add_field(name="SHINY", value="This hero is SHINY!", inline=False)
             embed.add_field(name="Feat", value=feat, inline=False)
+            embed.add_field(name="Class", value=f"{clazz} ({class_title})", inline=True)
+            embed.add_field(name="Class Modifier", value=f"{class_roll:.2f}", inline=True)
+            embed.add_field(name="Element", value=f"{element} ({element_title})", inline=True)
+            embed.add_field(name="Element Modifier", value=f"{elem_roll:.2f}", inline=True)
             embed.add_field(name="Divinity", value=f"{divinity} ({div_roll:.2f})", inline=True)
             embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
             embed.add_field(name="Race", value=race, inline=True)
-            embed.add_field(name="Class Roll", value=f"{class_roll:.2f}", inline=True)
-            embed.add_field(name="Element Roll", value=f"{elem_roll:.2f}", inline=True)
             if is_lucky:
                 embed.add_field(name="Lucky Roll", value=f"Yes (+{lucky_bonus:.2f})", inline=True)
             else:
