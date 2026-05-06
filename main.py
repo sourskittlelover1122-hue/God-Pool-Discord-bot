@@ -325,10 +325,29 @@ def format_event_announcement(state, forced_by=None):
     title = state["name"]
     boost = state["boost"]
     details = state.get("details", "")
+    
+    # Calculate remaining time
+    expires_at = datetime.datetime.fromisoformat(state.get("expires_at"))
+    now = datetime.datetime.utcnow()
+    time_remaining = expires_at - now
+    
+    # Format time remaining as HH:MM:SS or MM:SS
+    total_seconds = int(time_remaining.total_seconds())
+    if total_seconds < 0:
+        time_str = "0:00"
+    else:
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        if hours > 0:
+            time_str = f"{hours}:{minutes:02d}:{seconds:02d}"
+        else:
+            time_str = f"{minutes}:{seconds:02d}"
+    
     footer = "A new event has begun! It lasts 7 hours."
     if forced_by:
         footer = f"Forced into motion by {forced_by}. New event lasts 7 hours."
-    return f"🌟 **{title}** is now active!\n{boost}\n\n{details}\n\n{footer}"
+    return f"🌟 **{title}** is now active!\n{boost}\n\n{details}\n\n{time_str} remain\n\n{footer}"
 
 
 def get_announcement_channel(guild):
