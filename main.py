@@ -661,6 +661,216 @@ def roll_feat(rarity):
     return "No recorded feat."
 
 
+CHECKIN_ACTIONS = [
+    "Meditating in the ruins of a forgotten temple",
+    "Training under a collapsing waterfall",
+    "Hunting a corrupted beast in the wildlands",
+    "Resting after a brutal expedition",
+    "Crafting a weapon infused with elemental energy",
+    "Exploring an uncharted cavern system",
+    "Standing guard over a sacred relic",
+    "Recovering from severe injuries",
+    "Negotiating with a hostile faction",
+    "Studying ancient runes carved into stone",
+    "Tracking a legendary creature through the forest",
+    "Clearing out a monster-infested village",
+    "Charging power through storm energy",
+    "Patrolling the borders of the kingdom",
+    "Resting at a makeshift campfire",
+    "Searching for a lost companion",
+    "Conducting a ritual of purification",
+    "Defending a village from raiders",
+    "Mapping unknown territory",
+    "Gathering rare alchemical ingredients",
+    "Training combat techniques with a master",
+    "Restoring a broken artifact",
+    "Fighting off waves of enemies",
+    "Investigating a mysterious anomaly",
+    "Sealing a dimensional rift",
+    "Guarding a caravan through dangerous lands",
+    "Climbing a sacred mountain peak",
+    "Fleeing from an overwhelming threat",
+    "Preparing for an upcoming battle",
+    "Recovering ancient knowledge",
+    "Communing with a spirit entity",
+    "Harvesting energy from a leyline",
+    "Testing a newly forged weapon",
+    "Breaking through enemy lines",
+    "Surviving in a cursed zone",
+    "Exploring a sunken ruin",
+    "Clearing corruption from the land",
+    "Building a fortified outpost",
+    "Rescuing trapped civilians",
+    "Chasing a fleeing bounty target",
+    "Dueling an elite warrior",
+    "Absorbing elemental essence",
+    "Performing emergency healing rituals",
+    "Hiding from a superior force",
+    "Reinforcing magical barriers",
+    "Studying celestial movements",
+    "Recovering stolen artifacts",
+    "Assassinating a high-value target",
+    "Guarding a sacred shrine",
+    "Escorting an important envoy",
+    "Investigating a destroyed settlement",
+    "Facing a trial of endurance",
+    "Traversing a desert wasteland",
+    "Crossing a frozen tundra",
+    "Entering a forbidden zone",
+    "Breaking a magical seal",
+    "Defending against an ambush",
+    "Recovering lost memories",
+    "Enhancing combat abilities",
+    "Taming a wild beast",
+    "Repairing damaged armor",
+    "Observing enemy movements",
+    "Waiting for reinforcements",
+    "Channeling divine energy",
+    "Surviving a natural disaster",
+    "Escaping a collapsing dungeon",
+    "Uncovering hidden passages",
+    "Defending a strategic chokepoint",
+    "Collecting battlefield intelligence",
+    "Purging undead from the area",
+    "Searching for a mythical relic",
+    "Recovering from exhaustion",
+    "Studying forbidden magic",
+    "Strengthening spiritual energy",
+    "Training with elemental forces",
+    "Investigating strange phenomena",
+    "Guarding a prisoner convoy",
+    "Negotiating peace between factions",
+    "Surviving a monster siege",
+    "Infiltrating enemy territory",
+    "Sabotaging enemy supplies",
+    "Escorting survivors to safety",
+    "Exploring a floating ruin",
+    "Crossing a shattered battlefield",
+    "Rebuilding destroyed settlements",
+    "Holding the frontline alone",
+    "Resisting mind control influence",
+    "Purifying corrupted water sources",
+    "Activating ancient machinery",
+    "Discovering hidden lore",
+    "Chasing an escaping spirit",
+    "Breaking through a magical barrier",
+    "Defending against aerial threats",
+    "Harvesting mana crystals",
+    "Recovering from a divine trial",
+    "Testing reality stability",
+    "Exploring a void-touched zone",
+    "Meditating to regain balance",
+    "Strengthening soul resonance",
+    "Fighting a shadow version of self",
+    "Observing cosmic disturbances",
+    "Tracking interdimensional signals",
+    "Repairing dimensional fractures",
+    "Protecting a sacred tree",
+    "Clearing plague-infested lands",
+    "Surviving an endless storm",
+    "Escorting a royal procession",
+    "Holding a defensive formation",
+    "Conducting battlefield healing",
+    "Searching for survivors",
+    "Recovering stolen knowledge",
+    "Challenging arena champions",
+    "Entering a trial of gods",
+    "Unlocking sealed powers",
+    "Facing corrupted allies",
+    "Escaping collapsing reality",
+    "Defending against siege engines",
+    "Clearing a monster nest",
+    "Investigating ancient prophecy",
+    "Channeling forbidden energy",
+    "Resisting elemental overload",
+    "Traversing volcanic terrain",
+    "Crossing cursed swamplands",
+    "Mapping shifting terrain",
+    "Confronting a legendary beast",
+    "Hunting spectral entities",
+    "Guarding a dimensional anchor",
+    "Studying arcane anomalies",
+    "Reforging broken relics",
+    "Recovering lost artifacts of power",
+    "Escaping pursuit through ruins",
+    "Defending a last stronghold",
+    "Restoring balance to nature",
+    "Absorbing ambient magic",
+    "Tracking rogue magic storms",
+    "Investigating void contamination",
+    "Fighting through enemy stronghold",
+    "Recovering from soul damage",
+    "Observing time distortions",
+    "Breaking enemy siege lines",
+    "Strengthening defensive wards",
+    "Searching for divine intervention",
+    "Confronting ancient guardians",
+    "Training in isolation",
+    "Surviving without resources",
+    "Escaping labyrinthine ruins",
+    "Defending sacred grounds",
+    "Chasing a world-ending threat",
+    "Studying elemental convergence",
+    "Repairing reality anchors",
+    "Gathering storm energy",
+    "Guarding a portal nexus",
+    "Recovering from battle fatigue",
+    "Investigating celestial ruins",
+    "Destroying cursed relics",
+    "Escorting wounded allies",
+    "Preparing for apocalypse-level threat",
+    "Traversing dimensional overlap",
+    "Holding off enemy reinforcements",
+    "Surviving cursed transformation",
+    "Studying enemy weaknesses",
+    "Rebuilding magical defenses",
+    "Hunting elite commanders",
+    "Breaking enemy morale",
+    "Protecting a last hope artifact",
+    "Crossing battle-scarred plains",
+    "Recovering lost divine blessings",
+    "Investigating cosmic signals",
+    "Defending against shadow invasion",
+    "Clearing corrupted battlefield zones",
+    "Training with ancestral spirits",
+    "Surviving trial of endurance",
+    "Resisting void influence",
+    "Observing collapsing stars",
+    "Repairing broken leyline network",
+    "Escaping enchanted traps",
+    "Guarding sacred knowledge vault",
+    "Facing judgment trial",
+    "Hunting rogue entities",
+    "Clearing cursed tombs",
+    "Traversing unstable terrain",
+    "Defending collapsing fortress",
+    "Investigating ancient war sites",
+    "Channeling storm essence",
+    "Protecting elemental core",
+    "Surviving multi-wave assault",
+    "Recovering stolen essence fragments",
+    "Escorting magical artifact convoy",
+    "Studying forbidden ruins",
+    "Holding position under siege",
+    "Defeating invading force",
+    "Reinforcing magical seals",
+    "Surviving spiritual purge",
+    "Exploring fractured world zones",
+    "Tracking ancient war spirits",
+    "Defending dimensional gate",
+    "Investigating reality anomalies",
+    "Restoring broken sanctuaries",
+    "Surviving endless battlefield loop",
+    "Guarding celestial beacon",
+    "Searching for lost timeline fragments",
+    "Battling corrupted heroes",
+    "Escaping collapsing dungeon system",
+    "Defending against reality collapse",
+    "Preparing for god-level confrontation",
+    "Holding final stand"
+]
+
+
 # =========================
 # 📌 BOT COMMANDS
 # =========================
@@ -715,25 +925,20 @@ To delete your entire collection, use `!DeleteAllHerosGodPool`
 
 @bot.command(name="HerosGodPool")
 async def heros_god_pool(ctx):
-    """Display all heroes in a user's collection"""
+    """Display all heroes in a user's collection (name, rarity, and ID only)"""
     user_heroes = get_user_heroes(ctx.author.id)
     
     if not user_heroes:
         await ctx.send(f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **0 heroes** in your collection. Create one with `CH_Alignment_Divinity_Race_Element_Class`!")
         return
     
-    # Build the message
+    # Build the message with just name, rarity, and ID
     message = f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
     
     for hero in user_heroes:
-        message += f"**#{hero['id']}** 🏷️ Hero Name: {hero['full_name']}\n"
-        message += f"⭐ Rarity: {hero['rarity']}\n"
-        message += f"⚔️ Class: {hero['class']}\n"
-        message += f"🌟 Divinity: {hero['divinity']}\n"
-        message += f"⚖️ Alignment: {hero['alignment']}\n"
-        message += f"🧬 Race: {hero['race']}\n"
-        message += f"🌊 Element: {hero['element']}\n"
-        message += f"🔥 Feat: {hero['feat']}\n\n"
+        message += f"**#{hero['id']}** | {hero['full_name']} | ⭐ {hero['rarity']}\n"
+    
+    message += f"\n---\n*Use `!ViewHero <number>` to see a hero's full details.*"
     
     # Discord has a 2000 character limit per message, so split if needed
     if len(message) > 2000:
@@ -742,16 +947,16 @@ async def heros_god_pool(ctx):
         current = f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
         
         for hero in user_heroes:
-            hero_text = f"**#{hero['id']}** 🏷️ Hero Name: {hero['full_name']}\n⭐ Rarity: {hero['rarity']}\n⚔️ Class: {hero['class']}\n🌟 Divinity: {hero['divinity']}\n⚖️ Alignment: {hero['alignment']}\n🧬 Race: {hero['race']}\n🌊 Element: {hero['element']}\n🔥 Feat: {hero['feat']}\n\n"
+            hero_text = f"**#{hero['id']}** | {hero['full_name']} | ⭐ {hero['rarity']}\n"
             
-            if len(current) + len(hero_text) > 2000:
+            if len(current) + len(hero_text) > 1900:  # Leave room for footer
                 chunks.append(current)
                 current = hero_text
             else:
                 current += hero_text
         
         if current:
-            chunks.append(current)
+            chunks.append(current + f"\n---\n*Use `!ViewHero <number>` to see a hero's full details.*")
         
         for chunk in chunks:
             await ctx.send(chunk)
@@ -759,9 +964,39 @@ async def heros_god_pool(ctx):
         await ctx.send(message)
 
 
+@bot.command(name="ViewHero")
+async def view_hero(ctx, hero_id: int):
+    """View full details of a specific hero"""
+    user_heroes = get_user_heroes(ctx.author.id)
+    
+    hero = None
+    for h in user_heroes:
+        if h.get("id") == hero_id:
+            hero = h
+            break
+    
+    if not hero:
+        await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+        return
+    
+    message = f"**⚔️ HERO DETAILS — #{hero_id} ⚔️**\n\n"
+    message += f"🏷️ **Name:** {hero['full_name']}\n"
+    message += f"⭐ **Rarity:** {hero['rarity']}\n"
+    message += f"⚔️ **Class:** {hero['class']}\n"
+    message += f"🌟 **Divinity:** {hero['divinity']}\n"
+    message += f"⚖️ **Alignment:** {hero['alignment']}\n"
+    message += f"🧬 **Race:** {hero['race']}\n"
+    message += f"🌊 **Element:** {hero['element']}\n"
+    message += f"🔥 **Feat:** {hero['feat']}\n"
+    if hero.get('shiny', False):
+        message += f"\n✨ **This hero is SHINY!** ✨\n"
+    
+    await ctx.send(message)
+
+
 @bot.command(name="DeleteAllHerosGodPool")
 async def delete_all_heros_god_pool(ctx):
-    """Delete every hero in the calling user's collection."""
+    """Delete every hero in the calling user's collection (except preserved ones)."""
     heroes = load_user_heroes()
     user_id_str = str(ctx.author.id)
 
@@ -769,9 +1004,75 @@ async def delete_all_heros_god_pool(ctx):
         await ctx.send("You do not have any heroes to delete.")
         return
 
-    heroes[user_id_str] = []
+    # Remove only non-preserved heroes
+    user_heroes = heroes[user_id_str]
+    preserved_heroes = [h for h in user_heroes if h.get('preserved', False)]
+    deleted_count = len(user_heroes) - len(preserved_heroes)
+    
+    heroes[user_id_str] = preserved_heroes
     save_user_heroes(heroes)
-    await ctx.send(f"All heroes from **{ctx.author.name}**'s collection have been deleted.")
+    
+    if deleted_count == 0:
+        await ctx.send("All your heroes are preserved! Use `!PreserveHero <id>` to unpreserve them first.")
+    else:
+        msg = f"**{deleted_count}** hero(es) from **{ctx.author.name}**'s collection have been deleted."
+        if len(preserved_heroes) > 0:
+            msg += f" **{len(preserved_heroes)}** hero(es) were preserved and remain in your collection."
+        await ctx.send(msg)
+
+
+@bot.command(name="PreserveHero")
+async def preserve_hero(ctx, hero_id: int):
+    """Preserve a hero to prevent it from being deleted by !DeleteAllHerosGodPool"""
+    heroes = load_user_heroes()
+    user_id_str = str(ctx.author.id)
+    user_heroes = heroes.get(user_id_str, [])
+
+    if not user_heroes:
+        await ctx.send("You do not have any heroes in your collection.")
+        return
+
+    hero = None
+    for h in user_heroes:
+        if h.get("id") == hero_id:
+            hero = h
+            break
+
+    if not hero:
+        await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+        return
+
+    is_preserved = hero.get('preserved', False)
+    hero['preserved'] = not is_preserved
+    save_user_heroes(heroes)
+
+    if hero['preserved']:
+        await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is now **PRESERVED** and will not be deleted by `!DeleteAllHerosGodPool`.")
+    else:
+        await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is no longer preserved.")
+
+
+@bot.command(name="HeroCheckIn")
+async def hero_checkin(ctx, hero_id: int):
+    """Check in on what a hero is doing"""
+    user_heroes = get_user_heroes(ctx.author.id)
+
+    hero = None
+    for h in user_heroes:
+        if h.get("id") == hero_id:
+            hero = h
+            break
+
+    if not hero:
+        await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+        return
+
+    action = random.choice(CHECKIN_ACTIONS)
+    hero_name = hero['full_name']
+    
+    message = f"What is {hero_name} doing?\n\n{hero_name} **is currently** {action}"
+    
+    await ctx.send(message)
 
 @bot.command(name="Dishero")
 async def dishero(ctx, hero_number: int):
@@ -845,6 +1146,9 @@ async def on_message(message):
 
             name = random_name()
             feat = roll_feat(rarity)
+            
+            # Shiny chance (small chance)
+            is_shiny = random.random() < 0.05  # 5% chance
 
             final_name = f"{class_title} {clazz} {name} the {element_title} - ({rarity})"
 
@@ -857,7 +1161,9 @@ async def on_message(message):
                 "alignment": alignment,
                 "race": race,
                 "element": element_title,
-                "feat": feat
+                "feat": feat,
+                "shiny": is_shiny,
+                "preserved": False
             }
             
             add_hero_to_user(message.author.id, hero_data)
@@ -865,6 +1171,8 @@ async def on_message(message):
             embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
             embed.add_field(name="Hero", value=final_name, inline=False)
             embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
+            if is_shiny:
+                embed.add_field(name="✨ SHINY ✨", value="This hero is SHINY!", inline=False)
             embed.add_field(name="Feat", value=feat, inline=False)
             embed.add_field(name="Divinity", value=f"{divinity} ({div_roll:.2f})", inline=True)
             embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
