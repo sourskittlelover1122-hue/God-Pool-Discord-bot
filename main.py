@@ -1560,117 +1560,125 @@ async def dishero(ctx, hero_number: int):
 
 @bot.event
 async def on_message(message):
-    await bot.process_commands(message)
-
     if message.author.bot:
         return
 
-    if message.content.startswith("CH_"):
-        try:
-            parts = message.content.split("_")
+    await bot.process_commands(message)
 
-            alignment = parts[1]
-            divinity = parts[2]
-            race = parts[3]
-            element = parts[4]
-            clazz = parts[5]
+    content = message.content.strip()
+    if content.startswith("!"):
+        content = content[1:]
 
-            roll_count = increment_user_roll_count(message.author.id)
-            is_lucky = roll_count % 10 == 0
+    if not content.upper().startswith("CH_"):
+        return
 
-            # Rolls
-            align_roll = roll(ALIGNMENT_MODS[alignment])
-            div_roll = roll(DIVINITY_MODS[divinity])
-            elem_roll = roll(ELEMENT_MODS)
-            class_roll = roll(CLASS_MODS)
-            shiny_chance = 0.05
+    try:
+        parts = content.split("_")
+        if len(parts) != 6:
+            raise ValueError("Invalid hero creation format. Use `CH_Alignment_Divinity_Race_Element_Class`.")
 
-            align_roll, div_roll, elem_roll, class_roll, shiny_chance = apply_event_boosts(
-                alignment,
-                divinity,
-                element,
-                clazz,
-                race,
-                align_roll,
-                div_roll,
-                elem_roll,
-                class_roll,
-                shiny_chance,
-            )
+        alignment = parts[1]
+        divinity = parts[2]
+        race = parts[3]
+        element = parts[4]
+        clazz = parts[5]
 
-            total_score = align_roll + div_roll + elem_roll + class_roll
-            lucky_bonus = 0.0
-            if is_lucky:
-                lucky_bonus = random.uniform(0.5, 1.0)
-                total_score += lucky_bonus
+        roll_count = increment_user_roll_count(message.author.id)
+        is_lucky = roll_count % 10 == 0
 
-            rarity = get_rarity(total_score)
+        # Rolls
+        align_roll = roll(ALIGNMENT_MODS[alignment])
+        div_roll = roll(DIVINITY_MODS[divinity])
+        elem_roll = roll(ELEMENT_MODS)
+        class_roll = roll(CLASS_MODS)
+        shiny_chance = 0.05
 
-            class_title = get_class_title(class_roll)
+        align_roll, div_roll, elem_roll, class_roll, shiny_chance = apply_event_boosts(
+            alignment,
+            divinity,
+            element,
+            clazz,
+            race,
+            align_roll,
+            div_roll,
+            elem_roll,
+            class_roll,
+            shiny_chance,
+        )
 
-            element_good, element_bad = ELEMENTS[element]
+        total_score = align_roll + div_roll + elem_roll + class_roll
+        lucky_bonus = 0.0
+        if is_lucky:
+            lucky_bonus = random.uniform(0.5, 1.0)
+            total_score += lucky_bonus
 
-            element_title = element  # default for okay rolls
-            if elem_roll > 0.1:
-                element_title = element_good
-                element_part = f" the {element_good}"
-            elif elem_roll < -0.1:
-                element_title = element_bad
-                element_part = f" the {element_bad}"
-            else:
-                element_part = ""
+        rarity = get_rarity(total_score)
 
-            name = random_name()
-            feat = roll_feat(rarity)
-            
-            # Shiny chance (small chance)
-            is_shiny = random.random() < shiny_chance
+        class_title = get_class_title(class_roll)
 
-            final_name = f"{class_title} {clazz} {name}{element_part} - ({rarity})"
+        element_good, element_bad = ELEMENTS[element]
 
-            # Store hero data
-            created_at = datetime.datetime.now().strftime("%H:%M:%S %d %B %Y")
+        element_title = element  # default for okay rolls
+        if elem_roll > 0.1:
+            element_title = element_good
+            element_part = f" the {element_good}"
+        elif elem_roll < -0.1:
+            element_title = element_bad
+            element_part = f" the {element_bad}"
+        else:
+            element_part = ""
 
-            hero_data = {
-                "full_name": final_name,
-                "class": clazz,
-                "rarity": rarity,
-                "divinity": divinity,
-                "alignment": alignment,
-                "race": race,
-                "element": element_title,
-                "feat": feat,
-                "shiny": is_shiny,
-                "preserved": False,
-                "created_at": created_at
-            }
-            
-            add_hero_to_user(message.author.id, hero_data)
+        name = random_name()
+        feat = roll_feat(rarity)
+        
+        # Shiny chance (small chance)
+        is_shiny = random.random() < shiny_chance
 
-            embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
-            embed.add_field(name="Hero", value=final_name, inline=False)
-            embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
-            embed.add_field(name="Rolled At", value=created_at, inline=False)
-            if is_shiny:
-                embed.add_field(name="SHINY", value="This hero is SHINY!", inline=False)
-            embed.add_field(name="Feat", value=feat, inline=False)
-            embed.add_field(name="Class", value=f"{clazz} ({class_title})", inline=True)
-            embed.add_field(name="Class Modifier", value=f"{class_roll:.2f}", inline=True)
-            embed.add_field(name="Element", value=f"{element} ({element_title})", inline=True)
-            embed.add_field(name="Element Modifier", value=f"{elem_roll:.2f}", inline=True)
-            embed.add_field(name="Divinity", value=f"{divinity} ({div_roll:.2f})", inline=True)
-            embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
-            embed.add_field(name="Race", value=race, inline=True)
-            if is_lucky:
-                embed.add_field(name="Lucky Roll", value=f"Yes (+{lucky_bonus:.2f})", inline=True)
-            else:
-                embed.add_field(name="Lucky Roll", value="No", inline=True)
-            embed.set_footer(text=f"Hero added to your collection! Roll #{roll_count}.")
+        final_name = f"{class_title} {clazz} {name}{element_part} - ({rarity})"
 
-            await message.channel.send(embed=embed)
+        # Store hero data
+        created_at = datetime.datetime.now().strftime("%H:%M:%S %d %B %Y")
 
-        except Exception as e:
-            await message.channel.send(f"Error creating hero: {e}")
+        hero_data = {
+            "full_name": final_name,
+            "class": clazz,
+            "rarity": rarity,
+            "divinity": divinity,
+            "alignment": alignment,
+            "race": race,
+            "element": element_title,
+            "feat": feat,
+            "shiny": is_shiny,
+            "preserved": False,
+            "created_at": created_at
+        }
+        
+        add_hero_to_user(message.author.id, hero_data)
+
+        embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
+        embed.add_field(name="Hero", value=final_name, inline=False)
+        embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
+        embed.add_field(name="Rolled At", value=created_at, inline=False)
+        if is_shiny:
+            embed.add_field(name="SHINY", value="This hero is SHINY!", inline=False)
+        embed.add_field(name="Feat", value=feat, inline=False)
+        embed.add_field(name="Class", value=f"{clazz} ({class_title})", inline=True)
+        embed.add_field(name="Class Modifier", value=f"{class_roll:.2f}", inline=True)
+        embed.add_field(name="Element", value=f"{element} ({element_title})", inline=True)
+        embed.add_field(name="Element Modifier", value=f"{elem_roll:.2f}", inline=True)
+        embed.add_field(name="Divinity", value=f"{divinity} ({div_roll:.2f})", inline=True)
+        embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
+        embed.add_field(name="Race", value=race, inline=True)
+        if is_lucky:
+            embed.add_field(name="Lucky Roll", value=f"Yes (+{lucky_bonus:.2f})", inline=True)
+        else:
+            embed.add_field(name="Lucky Roll", value="No", inline=True)
+        embed.set_footer(text=f"Hero added to your collection! Roll #{roll_count}.")
+
+        await message.channel.send(embed=embed)
+
+    except Exception as e:
+        await message.channel.send(f"Error creating hero: {e}")
 
 
 bot.run(TOKEN)
