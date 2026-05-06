@@ -119,7 +119,7 @@ EVENTS = [
     },
     {
         "name": "The Wandering Tempest",
-        "boost": "Air, Rain, and Lightning heroes gain boosted rarity and check-in rewards.",
+        "boost": "Air, Rain, and Lightning heroes gain boosted rarity.",
         "details": "Stormwinds carry luck and reward to those who ride the tempest.",
     },
     {
@@ -1297,6 +1297,7 @@ Elements: Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial
 Classes: Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander
 
 Class ranks: {class_rank_lines}
+
 Overall rarity ranks: {rarity_rank_lines}
 
 Every 10th roll is Lucky. 5% chance for Shiny cosmetic.
