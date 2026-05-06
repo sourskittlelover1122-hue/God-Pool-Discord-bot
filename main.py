@@ -2,9 +2,10 @@ import discord
 import os
 import random
 import json
+import datetime
 from pathlib import Path
 from dotenv import load_dotenv
-from discord.ext import commands
+from discord.ext import commands, tasks
 import requests
 
 load_dotenv()
@@ -23,6 +24,116 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+EVENT_STATE_FILE = Path("event_state.json")
+EVENT_MESSAGE_INTERVAL_SECONDS = 12 * 60 * 60
+EVENT_DURATION_SECONDS = 7 * 60 * 60
+ACTIVE_EVENT_STATE = None
+
+EVENTS = [
+    {
+        "name": "Blood Moon Rising",
+        "boost": "Death, Corruption, and Evil alignment heroes gain greatly increased rarity chances.",
+        "details": "Rarity surges for the darkest champions under the crimson moon.",
+    },
+    {
+        "name": "Celestial Convergence",
+        "boost": "Divine and Celestial element rolls receive massive positive modifier boosts.",
+        "details": "Stars align and sacred power bathes those touched by the heavens.",
+    },
+    {
+        "name": "Infernal Surge",
+        "boost": "Hellish-style outcomes, Lava, Magma, and Fire elements roll higher but more volatile.",
+        "details": "The forge of the abyss spits unpredictable infernal power.",
+    },
+    {
+        "name": "The Hollow Fog",
+        "boost": "Mist and Dark elements gain increased shiny chances.",
+        "details": "A chilling haze whispers with glimmering secrets in the gloom.",
+    },
+    {
+        "name": "Verdant Bloom",
+        "boost": "Plants and Life heroes gain boosted rarity and reduced negative rolls.",
+        "details": "Nature's vitality blooms, guarding against rotten fate.",
+    },
+    {
+        "name": "Thunder Dominion",
+        "boost": "Lightning and Air elements gain increased chances for high-tier titles.",
+        "details": "Stormlords rise, and wind-carved titles thunder through the skies.",
+    },
+    {
+        "name": "The Drowned Tide",
+        "boost": "Water and Rain heroes gain boosted rarity and shiny odds.",
+        "details": "The ocean's blessing flows to those born of the tides.",
+    },
+    {
+        "name": "Gravecall Night",
+        "boost": "Undead and Death heroes are far more likely to roll Mythical+ rarities.",
+        "details": "The dead answer the call, and forbidden power awakens in the night.",
+    },
+    {
+        "name": "Prismatic Awakening",
+        "boost": "Glass, Crystal, and Color elements gain doubled chances for special titles.",
+        "details": "A spectrum of brilliance shatters the ordinary and crowns new champions.",
+    },
+    {
+        "name": "The Beast Hunt",
+        "boost": "Beast race and Beast element heroes gain stronger class modifiers.",
+        "details": "Predators prowl with sharpened instincts and primal rank.",
+        "race": ["Beast"],
+    },
+    {
+        "name": "Eclipse of Judgment",
+        "boost": "Alignment rolls become far more extreme, both positively and negatively.",
+        "details": "Balance shatters and fate swings wildly under the black sun.",
+    },
+    {
+        "name": "Forgeheart Festival",
+        "boost": "Steel and Earth heroes gain powerful stable rarity increases.",
+        "details": "The heart of the forge beats strong, grounding champions in strength.",
+    },
+    {
+        "name": "The Rotting Bloom",
+        "boost": "Spore and Poison heroes gain huge rarity spikes and increased shiny rates.",
+        "details": "Rotting beauty festers, attracting rare and dangerous glory.",
+    },
+    {
+        "name": "Starfall Cataclysm",
+        "boost": "Celestial and Equinox elements gain increased Omni and God-Challenger chances.",
+        "details": "Falling stars tear open the heavens for the chosen and the damned.",
+    },
+    {
+        "name": "The Ashen Era",
+        "boost": "Fire, Lava, and Magma heroes gain increased title quality rolls.",
+        "details": "The ash-filled skies crown the fiercest flame-born warriors.",
+    },
+    {
+        "name": "Sanctuary of Dawn",
+        "boost": "Light element and Good/Valiant alignments gain heavily reduced negative modifiers.",
+        "details": "Dawn's sanctuary shields the righteous from the darkest setbacks.",
+    },
+    {
+        "name": "The Rift Collapse",
+        "boost": "Random element modifiers are doubled, creating chaotic high-roll opportunities.",
+        "details": "Reality warps and elemental fortunes twist wildly.",
+    },
+    {
+        "name": "The Wandering Tempest",
+        "boost": "Air, Rain, and Lightning heroes gain boosted rarity and check-in rewards.",
+        "details": "Stormwinds carry luck and reward to those who ride the tempest.",
+    },
+    {
+        "name": "Kingdoms at War",
+        "boost": "Commander, Paladin, Admiral, and Warrior classes gain greatly increased class rolls.",
+        "details": "Battlefields ignite and commanding champions gain fearsome valor.",
+        "classes": ["Commander", "Paladin", "Admiral", "Warrior"],
+    },
+    {
+        "name": "The Abyss Stares Back",
+        "boost": "Corruption, Dark, and Mischievous/Evil alignment heroes gain extremely high-risk, high-reward modifiers.",
+        "details": "The abyss reaches out with torment and temptation for the bold.",
+    },
+]
 
 # =========================
 # 💾 USER HERO STORAGE
@@ -164,6 +275,199 @@ def get_next_hero_id(user_id):
             continue
     return max_id + 1
 
+
+def load_event_state():
+    """Load the persisted event state from disk."""
+    if EVENT_STATE_FILE.exists():
+        try:
+            with open(EVENT_STATE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading event state: {e}")
+    return None
+
+
+def save_event_state(state):
+    """Persist the current event state to disk."""
+    try:
+        with open(EVENT_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"Error saving event state: {e}")
+
+
+def choose_random_event(exclude_name=None):
+    """Choose a random event, optionally excluding the current one."""
+    options = [event for event in EVENTS if event["name"] != exclude_name]
+    if not options:
+        options = EVENTS
+    return random.choice(options)
+
+
+def build_event_state(event):
+    """Build a new persisted state for an event announcement."""
+    now = datetime.datetime.utcnow()
+    return {
+        "name": event["name"],
+        "boost": event["boost"],
+        "details": event.get("details", ""),
+        "classes": event.get("classes", []),
+        "elements": event.get("elements", []),
+        "race": event.get("race", []),
+        "started_at": now.isoformat(),
+        "expires_at": (now + datetime.timedelta(seconds=EVENT_DURATION_SECONDS)).isoformat(),
+        "next_announcement_at": (now + datetime.timedelta(seconds=EVENT_MESSAGE_INTERVAL_SECONDS)).isoformat(),
+    }
+
+
+def format_event_announcement(state, forced_by=None):
+    """Create the announcement text for the current event."""
+    title = state["name"]
+    boost = state["boost"]
+    details = state.get("details", "")
+    footer = "A new event has begun! It lasts 7 hours."
+    if forced_by:
+        footer = f"Forced into motion by {forced_by}. New event lasts 7 hours."
+    return f"🌟 **{title}** is now active!\n{boost}\n\n{details}\n\n{footer}"
+
+
+def get_announcement_channel(guild):
+    """Find a channel in the guild where the bot can send announcements."""
+    if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
+        return guild.system_channel
+    for channel in guild.text_channels:
+        if channel.permissions_for(guild.me).send_messages:
+            return channel
+    return None
+
+
+async def send_global_announcement(message):
+    """Send the same announcement message to every guild the bot is in."""
+    for guild in bot.guilds:
+        channel = get_announcement_channel(guild)
+        if channel is not None:
+            try:
+                await channel.send(message)
+            except Exception as e:
+                print(f"Failed to send announcement to {guild.name}: {e}")
+
+
+def is_event_active(state):
+    """Check whether the current event is still active."""
+    if not state:
+        return False
+    try:
+        expires_at = datetime.datetime.fromisoformat(state.get("expires_at"))
+        return datetime.datetime.utcnow() < expires_at
+    except Exception:
+        return False
+
+
+def get_current_event():
+    """Return the event state loaded into memory or from disk."""
+    global ACTIVE_EVENT_STATE
+    if ACTIVE_EVENT_STATE is None:
+        ACTIVE_EVENT_STATE = load_event_state()
+    return ACTIVE_EVENT_STATE
+
+
+def set_current_event(state):
+    """Persist and store the active event state."""
+    global ACTIVE_EVENT_STATE
+    ACTIVE_EVENT_STATE = state
+    save_event_state(state)
+
+
+def choose_and_activate_event(exclude_name=None):
+    """Choose a new event, persist it, and return the state."""
+    event = choose_random_event(exclude_name=exclude_name)
+    state = build_event_state(event)
+    set_current_event(state)
+    return state
+
+
+def apply_event_boosts(alignment, divinity, element, clazz, race, align_roll, div_roll, elem_roll, class_roll, shiny_chance):
+    """Modify roll values based on the active event."""
+    state = get_current_event()
+    if not is_event_active(state):
+        return align_roll, div_roll, elem_roll, class_roll, shiny_chance
+
+    event_name = state["name"]
+    if event_name == "Blood Moon Rising":
+        if alignment in ["Death", "Corruption", "Evil"]:
+            align_roll += random.uniform(0.4, 0.9)
+    elif event_name == "Celestial Convergence":
+        if divinity == "Divine":
+            div_roll += random.uniform(0.35, 0.75)
+        if element == "Celestial":
+            elem_roll += random.uniform(0.35, 0.75)
+    elif event_name == "Infernal Surge":
+        if element in ["Lava", "Magma", "Fire"]:
+            elem_roll += random.uniform(0.25, 0.7)
+            if random.random() < 0.2:
+                elem_roll += random.uniform(-0.45, 0.3)
+    elif event_name == "The Hollow Fog":
+        if element in ["Mist", "Dark"]:
+            shiny_chance += 0.12
+    elif event_name == "Verdant Bloom":
+        if element in ["Plants", "Life"]:
+            elem_roll += random.uniform(0.25, 0.7)
+            if elem_roll < 0:
+                elem_roll *= 0.5
+    elif event_name == "Thunder Dominion":
+        if element in ["Lightning", "Air"]:
+            class_roll += random.uniform(0.25, 0.65)
+    elif event_name == "The Drowned Tide":
+        if element in ["Water", "Rain"]:
+            elem_roll += random.uniform(0.3, 0.75)
+            shiny_chance += 0.1
+    elif event_name == "Gravecall Night":
+        if race == "Undead" or element == "Death":
+            align_roll += random.uniform(0.5, 1.1)
+    elif event_name == "Prismatic Awakening":
+        if element in ["Glass", "Crystal", "Color"]:
+            class_roll += random.uniform(0.35, 0.8)
+    elif event_name == "The Beast Hunt":
+        if race == "Beast" or element == "Beast":
+            class_roll += random.uniform(0.35, 0.8)
+    elif event_name == "Eclipse of Judgment":
+        align_roll *= random.uniform(1.4, 2.0)
+    elif event_name == "Forgeheart Festival":
+        if element in ["Steel", "Earth"]:
+            elem_roll += random.uniform(0.35, 0.8)
+    elif event_name == "The Rotting Bloom":
+        if element in ["Spore", "Poison"]:
+            elem_roll += random.uniform(0.4, 0.95)
+            shiny_chance += 0.15
+    elif event_name == "Starfall Cataclysm":
+        if element in ["Celestial", "Equinox"]:
+            align_roll += random.uniform(0.4, 0.9)
+            class_roll += random.uniform(0.25, 0.6)
+    elif event_name == "The Ashen Era":
+        if element in ["Fire", "Lava", "Magma"]:
+            class_roll += random.uniform(0.35, 0.8)
+    elif event_name == "Sanctuary of Dawn":
+        if element == "Light" or alignment in ["Good", "Valiant"]:
+            if div_roll < 0:
+                div_roll *= 0.5
+            if align_roll < 0:
+                align_roll *= 0.5
+    elif event_name == "The Rift Collapse":
+        elem_roll *= 2
+    elif event_name == "The Wandering Tempest":
+        if element in ["Air", "Rain", "Lightning"]:
+            elem_roll += random.uniform(0.3, 0.75)
+    elif event_name == "Kingdoms at War":
+        if clazz in ["Commander", "Paladin", "Admiral", "Warrior"]:
+            class_roll += random.uniform(0.5, 1.0)
+    elif event_name == "The Abyss Stares Back":
+        if element in ["Corruption", "Dark"] or alignment in ["Mischievous", "Evil"]:
+            bonus = random.uniform(-0.55, 1.1)
+            align_roll += bonus
+            elem_roll += random.uniform(-0.25, 0.25)
+
+    return align_roll, div_roll, elem_roll, class_roll, shiny_chance
+
 # =========================
 # 🔥 PASTE NAME LISTS HERE
 # =========================
@@ -205,28 +509,24 @@ FIRST_NAMES = [
 ]
 
 LAST_NAMES = [
-    "Stormborn", "Nightwhisper", "Ironvale", "Duskbreaker", "Ashenford", "Grimshaw", "Voidwalker", "Sunfall",
-"Mooncrest", "Bloodthorne", "Starforge", "Emberlight", "Frosthelm", "Dreadmoor", "Windrider", "Stoneveil",
-"Darkwater", "Flameward", "Skylance", "Ironfrost", "Shadowmere", "Goldbranch", "Ravencrest", "Thornfield",
-"Brightsoul", "Dustborn", "Skullrend", "Stormveil", "Blackthorn", "Silverveil", "Oathbinder", "Firebrand",
-"Nightfall", "Mistwalker", "Bloodraven", "Stonebreaker", "Skyforge", "Emberstone", "Frostwind", "Daggerfall",
-"Voidborn", "Ashwalker", "Lightbringer", "Graveborn", "Soulrender", "Ironshade", "Moonfall", "Starveil",
-"Darkbane", "Stormclaw", "Flameheart", "Wraithwood", "Duskforge", "Sunblade", "Nightforge", "Bloodveil",
-"Stoneheart", "Windshade", "Shadowthorn", "Frostfang", "Emberbane", "Skyrend", "Ironthorn", "Voidflare",
-"Grimveil", "Ashenblade", "Moonshade", "Starborn", "Dreadfang", "Fireveil", "Blackwater", "Silverthorn",
-"Stormborned", "Nightbloom", "Ironwraith", "Dustveil", "Bloodshade", "Skyshadow", "Emberforge", "Frostveil",
-"Shadowblade", "Stoneveil", "Voidcrest", "Flameveil", "Sunshadow", "Graveveil", "Windthorn", "Ashenveil",
-"Moonblade", "Darkflare", "Stormrend", "Ironblade", "Nightthorn", "Bloodforge", "Skyveil", "Emberthorn",
-"Frostborne", "Shadowfall", "Stoneforge", "Voidthorn", "Flamefall", "Sunforge", "Grimthorn", "Ashenfall",
-"Moonforge", "Darkthorn", "Stormshadow", "Ironfall", "Nightveil", "Bloodthorned", "Skyborne", "Emberfall",
-"Frostshadow", "Shadowforge", "Stonefall", "Voidfall", "Flameborn", "Sunveil", "Graveforge", "Windfall",
-"Ashenborn", "Moonthorn", "Darkveil", "Stormblade", "Ironveil", "Nightshade", "Bloodfall", "Skyforge",
-"Emberveil", "Frostfall", "Shadowborn", "Stoneblade", "Voidshade", "Flameblade", "Sunborn", "Grimfall",
-"Ashenforge", "Moonfallen", "Darkborn", "Stormveilborn", "Ironshadow", "Nightforgeborn", "Bloodveilborn",
-"Skyfall", "Embershade", "Frostforge", "Shadowveil", "Stoneborn", "Voidborned", "Flameveilborn",
-"Sunfallen", "Graveborn", "Windveil", "Ashenshadow", "Moonveil", "Darkforge", "Stormborned", "Ironcrest",
-"Nightfallen", "Bloodcrest", "Skyshade", "Embercrest", "Frostcrest", "Shadowcrest", "Stonecrest",
-"Voidcrested", "Flamecrest", "Suncrest", "Grimcrest", "Ashencrest", "Mooncrested", "Darkcrest", "Stormcrest"
+    "Gravron", "Sykang", "Bralen", "Morvek", "Harkan", "Velorin", "Caldor", "Fenric",
+"Druven", "Korrin", "Lareth", "Myrion", "Selran", "Tavric", "Vornak", "Zelmir",
+"Arken", "Brennar", "Calyth", "Draven", "Eldrid", "Farron", "Gorlan", "Havren",
+"Ithran", "Jorvik", "Kalren", "Lyrion", "Mavros", "Norwyn", "Orvyn", "Perrik",
+"Quorin", "Ravell", "Sarvik", "Thalen", "Ulmar", "Varcor", "Wesryn", "Xandar",
+"Yorlan", "Zaren", "Aldric", "Brinor", "Corven", "Dasker", "Elyon", "Fendrith",
+"Garron", "Haldor", "Ivron", "Jasker", "Korlen", "Lythar", "Mordek", "Nereth",
+"Odran", "Prythe", "Quaric", "Ralen", "Selron", "Tyrvan", "Uldor", "Velmar",
+"Wyrik", "Xandor", "Ylven", "Zorin", "Arvex", "Branik", "Cerath", "Dornel",
+"Eldran", "Faylen", "Gavric", "Halvor", "Iyren", "Jorath", "Krelan", "Lysen",
+"Meral", "Nyrik", "Orren", "Parvik", "Qyros", "Revas", "Sarlen", "Tharic",
+"Urven", "Veknor", "Weslor", "Xyran", "Yevon", "Zalrin", "Averon", "Brynd",
+"Cavren", "Dornik", "Erasyn", "Fyran", "Grelth", "Havik", "Ithrel", "Jaryn",
+"Kallor", "Lydar", "Marvik", "Neroth", "Orvin", "Pyran", "Ryxen", "Saren",
+"Talric", "Ulrak", "Voren", "Wyler", "Xaric", "Yvran", "Zalvor", "Arven",
+"Bralor", "Crethan", "Dalvek", "Elvyn", "Freth", "Gorvik", "Halen", "Jovren",
+"Karven", "Leyron", "Marven", "Norlis", "Oscor", "Pervan", "Qyros", "Ralven",
+"Serak", "Thorin", "Urel", "Valkan", "Wyrin", "Xerath", "Ylkor", "Zereth"
 ]
 
 
@@ -955,6 +1255,20 @@ CHECKIN_ACTIONS = [
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+    if not event_scheduler.is_running():
+        event_scheduler.start()
+
+
+@tasks.loop(minutes=1)
+async def event_scheduler():
+    """Send an event announcement every 12 hours and keep event state updated."""
+    state = load_event_state()
+    now = datetime.datetime.utcnow()
+    if not state or now >= datetime.datetime.fromisoformat(state.get("next_announcement_at", now.isoformat())):
+        previous_name = state.get("name") if state else None
+        new_state = choose_and_activate_event(exclude_name=previous_name)
+        announcement = format_event_announcement(new_state)
+        await send_global_announcement(announcement)
 
 
 @bot.command(name="CH")
@@ -1069,6 +1383,7 @@ async def view_hero(ctx, hero_id: int):
     message += f"**Race:** {hero['race']}\n"
     message += f"**Element:** {hero['element']}\n"
     message += f"**Feat:** {hero['feat']}\n"
+    message += f"**Rolled At:** {hero.get('created_at', 'Unknown')}\n"
     if hero.get('shiny', False):
         message += f"\n**This hero is SHINY!**\n"
     
@@ -1133,6 +1448,38 @@ async def preserve_hero(ctx, hero_id: int):
         await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is no longer preserved.")
 
 
+@bot.command(name="NameHero")
+async def name_hero(ctx, hero_id: int, *, nickname: str):
+    """Rename a hero using a nickname while preserving rarity in the displayed name."""
+    heroes = load_user_heroes()
+    user_id_str = str(ctx.author.id)
+    user_heroes = heroes.get(user_id_str, [])
+
+    if not user_heroes:
+        await ctx.send("You do not have any heroes in your collection.")
+        return
+
+    hero = None
+    for h in user_heroes:
+        if h.get("id") == hero_id:
+            hero = h
+            break
+
+    if not hero:
+        await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+        return
+
+    nickname = nickname.strip()
+    if not nickname:
+        await ctx.send("Please provide a valid nickname after the hero ID.")
+        return
+
+    hero['full_name'] = f"{nickname} - ({hero['rarity']})"
+    save_user_heroes(heroes)
+
+    await ctx.send(f"Hero **#{hero_id}** is now named `{hero['full_name']}`.")
+
+
 @bot.command(name="HeroCheckIn")
 async def hero_checkin(ctx, hero_id: int):
     """Check in on what a hero is doing"""
@@ -1154,6 +1501,19 @@ async def hero_checkin(ctx, hero_id: int):
     message = f"What is {hero_name} doing?\n\n{hero_name} **is currently {action}**"
     
     await ctx.send(message)
+
+@bot.command(name="ForceGodWeather")
+async def force_god_weather(ctx):
+    """Reset the event timer and choose a new event; only mrleave may use this."""
+    if ctx.author.name != "mrleave":
+        await ctx.send("Only the user named `mrleave` may use this command.")
+        return
+
+    current_state = load_event_state() or {}
+    next_state = choose_and_activate_event(exclude_name=current_state.get("name"))
+    announcement = format_event_announcement(next_state, forced_by=ctx.author.name)
+    await send_global_announcement(announcement)
+    await ctx.send(f"The event timer has been reset and the new event **{next_state['name']}** is now active for 7 hours.")
 
 @bot.command(name="Dishero")
 async def dishero(ctx, hero_number: int):
@@ -1205,6 +1565,20 @@ async def on_message(message):
             div_roll = roll(DIVINITY_MODS[divinity])
             elem_roll = roll(ELEMENT_MODS)
             class_roll = roll(CLASS_MODS)
+            shiny_chance = 0.05
+
+            align_roll, div_roll, elem_roll, class_roll, shiny_chance = apply_event_boosts(
+                alignment,
+                divinity,
+                element,
+                clazz,
+                race,
+                align_roll,
+                div_roll,
+                elem_roll,
+                class_roll,
+                shiny_chance,
+            )
 
             total_score = align_roll + div_roll + elem_roll + class_roll
             lucky_bonus = 0.0
@@ -1229,11 +1603,13 @@ async def on_message(message):
             feat = roll_feat(rarity)
             
             # Shiny chance (small chance)
-            is_shiny = random.random() < 0.05  # 5% chance
+            is_shiny = random.random() < shiny_chance
 
             final_name = f"{class_title} {clazz} {name} the {element_title} - ({rarity})"
 
             # Store hero data
+            created_at = datetime.datetime.now().strftime("%H:%M:%S %d %B %Y")
+
             hero_data = {
                 "full_name": final_name,
                 "class": clazz,
@@ -1244,7 +1620,8 @@ async def on_message(message):
                 "element": element_title,
                 "feat": feat,
                 "shiny": is_shiny,
-                "preserved": False
+                "preserved": False,
+                "created_at": created_at
             }
             
             add_hero_to_user(message.author.id, hero_data)
@@ -1252,6 +1629,7 @@ async def on_message(message):
             embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
             embed.add_field(name="Hero", value=final_name, inline=False)
             embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
+            embed.add_field(name="Rolled At", value=created_at, inline=False)
             if is_shiny:
                 embed.add_field(name="SHINY", value="This hero is SHINY!", inline=False)
             embed.add_field(name="Feat", value=feat, inline=False)
