@@ -20,6 +20,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # =========================
 
 HEROES_FILE = Path("user_heroes.json")
+ROLL_COUNTER_FILE = Path("user_roll_counts.json")
 
 def load_user_heroes():
     """Load all user heroes from file"""
@@ -32,6 +33,29 @@ def save_user_heroes(heroes_data):
     """Save all user heroes to file"""
     with open(HEROES_FILE, "w") as f:
         json.dump(heroes_data, f, indent=2)
+
+
+def load_user_roll_counts():
+    """Load persisted roll counts for users."""
+    if ROLL_COUNTER_FILE.exists():
+        with open(ROLL_COUNTER_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+
+def save_user_roll_counts(counts):
+    """Save persisted roll counts for users."""
+    with open(ROLL_COUNTER_FILE, "w") as f:
+        json.dump(counts, f, indent=2)
+
+
+def increment_user_roll_count(user_id):
+    """Increment the user's roll count and return the new count."""
+    counts = load_user_roll_counts()
+    user_id_str = str(user_id)
+    counts[user_id_str] = counts.get(user_id_str, 0) + 1
+    save_user_roll_counts(counts)
+    return counts[user_id_str]
 
 def add_hero_to_user(user_id, hero_data):
     """Add a hero to a user's collection"""
@@ -520,37 +544,37 @@ FEATS_BY_RARITY = {
 # =========================
 
 ALIGNMENT_MODS = {
-    "Valiant": (0.1, 0.6),
-    "Good": (0.05, 0.5),
-    "Neutral": (-0.1, 0.4),
-    "Mischievous": (-0.3, 0.7),
-    "Evil": (-0.4, 0.8),
+    "Valiant": (0.2, 0.9),
+    "Good": (0.1, 0.7),
+    "Neutral": (-0.1, 0.5),
+    "Mischievous": (-0.2, 0.9),
+    "Evil": (-0.4, 0.9),
 }
 
 DIVINITY_MODS = {
-    "Divine": (-0.1, 0.8),
-    "Neutral": (-0.2, 0.5),
+    "Divine": (-0.1, 0.9),
+    "Neutral": (-0.2, 0.6),
 }
 
-ELEMENT_MODS = (-0.25, 0.25)
-CLASS_MODS = (-0.25, 0.25)
+ELEMENT_MODS = (-0.35, 0.35)
+CLASS_MODS = (-0.35, 0.35)
 
 
 RARITY_TIERS = [
     (0.0, "Common"),
-    (0.5, "Trained"),
-    (1.0, "Uncommon"),
-    (1.5, "Handy"),
-    (2.0, "Rare"),
-    (2.6, "Pseudo"),
-    (3.2, "Genisis"),
-    (4.0, "Legendary"),
-    (5.0, "Mythical"),
-    (6.0, "Ethereal"),
-    (7.0, "Ascendant"),
-    (8.5, "Primordial"),
-    (10.0, "Omni"),
-    (12.0, "God-Challenger"),
+    (0.35, "Trained"),
+    (0.8, "Uncommon"),
+    (1.2, "Handy"),
+    (1.6, "Rare"),
+    (2.0, "Pseudo"),
+    (2.4, "Genisis"),
+    (2.8, "Legendary"),
+    (3.2, "Mythical"),
+    (3.6, "Ethereal"),
+    (4.2, "Ascendant"),
+    (4.8, "Primordial"),
+    (5.6, "Omni"),
+    (6.8, "God-Challenger"),
 ]
 
 
@@ -659,19 +683,29 @@ Send your hero like this:
 **Options:**
 
 Alignment:
-Valiant / Good / Neutral / Mischievous / Evil
+Valiant (0.2 to 0.9)
+Good (0.1 to 0.7)
+Neutral (-0.1 to 0.5)
+Mischievous (-0.2 to 0.9)
+Evil (-0.4 to 0.9)
 
 Divinity:
-Divine / Neutral
+Divine (-0.1 to 0.9)
+Neutral (-0.2 to 0.6)
 
 Race:
 Human / Construct / Elven / Goblin / Beast / Ogre / Deep-Crawler / Celestial / Angel / Demon / Dwarf / Elemental / Undead / Magma-Crawler
+*Race is flavor only and does not affect rarity.*
 
 Elements:
 Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, Lightning, Magma, Spore, Crystal, Color, Plants, Poison, Corruption, Mist, Death, Life, Rain, Lava
+*Element roll range: -0.35 to 0.35*
 
 Classes:
 Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander
+*Class roll range: -0.35 to 0.35*
+
+Every 10th roll is a Lucky Roll with a higher chance to get a better rarity.
 
 To view your hero collection, use the command `!HerosGodPool`
 To remove one hero by number, use `!Dishero <number>`
@@ -781,6 +815,9 @@ async def on_message(message):
             element = parts[4]
             clazz = parts[5]
 
+            roll_count = increment_user_roll_count(message.author.id)
+            is_lucky = roll_count % 10 == 0
+
             # Rolls
             align_roll = roll(ALIGNMENT_MODS[alignment])
             div_roll = roll(DIVINITY_MODS[divinity])
@@ -788,6 +825,10 @@ async def on_message(message):
             class_roll = roll(CLASS_MODS)
 
             total_score = align_roll + div_roll + elem_roll + class_roll
+            lucky_bonus = 0.0
+            if is_lucky:
+                lucky_bonus = random.uniform(0.5, 1.0)
+                total_score += lucky_bonus
 
             rarity = get_rarity(total_score)
 
@@ -830,7 +871,11 @@ async def on_message(message):
             embed.add_field(name="Race", value=race, inline=True)
             embed.add_field(name="Class Roll", value=f"{class_roll:.2f}", inline=True)
             embed.add_field(name="Element Roll", value=f"{elem_roll:.2f}", inline=True)
-            embed.set_footer(text="✅ Hero added to your collection!")
+            if is_lucky:
+                embed.add_field(name="Lucky Roll", value=f"Yes (+{lucky_bonus:.2f})", inline=True)
+            else:
+                embed.add_field(name="Lucky Roll", value="No", inline=True)
+            embed.set_footer(text=f"✅ Hero added to your collection! Roll #{roll_count}.")
 
             await message.channel.send(embed=embed)
 
