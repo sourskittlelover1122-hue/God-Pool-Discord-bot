@@ -333,8 +333,14 @@ def format_event_announcement(state, forced_by=None):
 
 def get_announcement_channel(guild):
     """Find a channel in the guild where the bot can send announcements."""
+    # First, try to find a channel named "godpool-events"
+    for channel in guild.text_channels:
+        if channel.name == "godpool-events" and channel.permissions_for(guild.me).send_messages:
+            return channel
+    # Fallback to system channel
     if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
         return guild.system_channel
+    # Fallback to any text channel
     for channel in guild.text_channels:
         if channel.permissions_for(guild.me).send_messages:
             return channel
@@ -931,6 +937,7 @@ ALIGNMENT_MODS = {
 DIVINITY_MODS = {
     "Divine": (-0.1, 0.9),
     "Neutral": (-0.2, 0.6),
+    "Hellish": (-0.3, 1.0),
 }
 
 ELEMENT_MODS = (-0.35, 0.35)
@@ -998,6 +1005,7 @@ ELEMENTS = {
     "Mist": ("Fogwalker", "Lost Wanderer"),
     "Death": ("Grave Monarch", "Soulblighted"),
     "Life": ("Lifebringer", "Wilted Spirit"),
+    "Ice": ("Frostwarden", "Icebound"),
     "Rain": ("Stormbearer", "Endless Drizzle"),
     "Lava": ("Volcano King", "Burnscarred"),
 }
@@ -1293,13 +1301,14 @@ Evil (-0.4 to 0.9)
 Divinity:
 Divine (-0.1 to 0.9)
 Neutral (-0.2 to 0.6)
+Hellish (-0.3 to 1.0)
 
 Race:
 Human / Construct / Elven / Goblin / Beast / Ogre / Deep-Crawler / Celestial / Angel / Demon / Dwarf / Elemental / Undead / Magma-Crawler
 *Race is flavor only and does not affect rarity.*
 
 Elements:
-Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, Lightning, Magma, Spore, Crystal, Color, Plants, Poison, Corruption, Mist, Death, Life, Rain, Lava
+Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, Lightning, Magma, Spore, Crystal, Color, Plants, Poison, Corruption, Mist, Death, Life, Ice, Rain, Lava
 *Element roll range: -0.35 to 0.35*
 
 Classes:
@@ -1592,12 +1601,15 @@ async def on_message(message):
 
             element_good, element_bad = ELEMENTS[element]
 
+            element_title = element  # default for okay rolls
             if elem_roll > 0.1:
                 element_title = element_good
+                element_part = f" the {element_good}"
             elif elem_roll < -0.1:
                 element_title = element_bad
+                element_part = f" the {element_bad}"
             else:
-                element_title = element
+                element_part = ""
 
             name = random_name()
             feat = roll_feat(rarity)
@@ -1605,7 +1617,7 @@ async def on_message(message):
             # Shiny chance (small chance)
             is_shiny = random.random() < shiny_chance
 
-            final_name = f"{class_title} {clazz} {name} the {element_title} - ({rarity})"
+            final_name = f"{class_title} {clazz} {name}{element_part} - ({rarity})"
 
             # Store hero data
             created_at = datetime.datetime.now().strftime("%H:%M:%S %d %B %Y")
