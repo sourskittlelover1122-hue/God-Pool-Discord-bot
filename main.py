@@ -916,10 +916,14 @@ Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, 
 *Class roll range: -0.35 to 0.35*
 
 Every 10th roll is a Lucky Roll with a higher chance to get a better rarity.
+Every roll has a 5% chance to be Shiny, which is a special cosmetic trait that does not affect rarity but is noted in the hero's details.
 
 To view your hero collection, use the command `!HerosGodPool`
 To remove one hero by number, use `!Dishero <number>`
 To delete your entire collection, use `!DeleteAllHerosGodPool`
+To preserve a hero from deletion, use `!PreserveHero <number>` (It will not be deleted by the delete all command, but it can still be deleted individually with `!Dishero <number>`)
+To view a hero's full details, use `!ViewHero <number>`
+To check in with your hero and get a random action, use `!CheckIn`
 """
     await ctx.send(msg)
 
