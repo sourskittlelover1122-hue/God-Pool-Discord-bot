@@ -1281,58 +1281,28 @@ async def event_scheduler():
 
 @bot.command(name="CH")
 async def create_hero(ctx):
-    class_rank_lines = "\n".join([f"{threshold:+.2f} → {name}" for threshold, name in CLASS_TIERS])
-    rarity_rank_lines = "\n".join([f"{threshold:+.2f} → {name}" for threshold, name in RARITY_TIERS])
-
+    class_rank_lines = "  ".join([f"{name}({threshold:+.2f})" for threshold, name in CLASS_TIERS])
+    rarity_rank_lines = "  ".join([f"{name}({threshold:+.2f})" for threshold, name in RARITY_TIERS])
     msg = f"""
-**Hero Creation Format**
-Send your hero like this:
+**Hero Creation Guide**
+Use: `CH_Alignment_Divinity_Race_Element_Class`
 
-`CH_Alignment_Divinity_Race_Element_Class`
+*Choices*
+Alignment: Valiant, Good, Neutral, Mischievous, Evil
+Divinity: Divine, Neutral, Hellish
+Race: Human / Construct / Elven / Goblin / Beast / Ogre / Deep-Crawler / Celestial / Angel / Demon / Dwarf / Elemental / Undead / Magma-Crawler
+*Race is flavor only.*
 
----
+Elements: Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, Lightning, Magma, Spore, Crystal, Color, Plants, Poison, Corruption, Mist, Death, Life, Ice, Rain, Lava
+Classes: Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander
 
-**Options:**
+Class ranks: {class_rank_lines}
+Overall rarity ranks: {rarity_rank_lines}
 
-Alignment:
-Valiant (0.2 to 0.9)
-Good (0.1 to 0.7)
-Neutral (-0.1 to 0.5)
-Mischievous (-0.2 to 0.9)
-Evil (-0.4 to 0.9)
+Every 10th roll is Lucky. 5% chance for Shiny cosmetic.
 
-Divinity:
-Divine (-0.1 to 0.9)
-Neutral (-0.2 to 0.6)
-Hellish (-0.3 to 1.0)
-
-Race:
-Human / Construct / Elven / Goblin / Beast / Ogre / Deep-Crawler / Celestial / Angel / Demon / Dwarf / Elemental / Undead / Magma-Crawler
-*Race is flavor only and does not affect rarity.*
-
-Elements:
-Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, Lightning, Magma, Spore, Crystal, Color, Plants, Poison, Corruption, Mist, Death, Life, Ice, Rain, Lava
-*Element roll range: -0.35 to 0.35*
-
-Classes:
-Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander
-*Class roll range: -0.35 to 0.35*
-
-Class Ranks:
-{class_rank_lines}
-
-Overall Rarity Ranks:
-{rarity_rank_lines}
-
-Every 10th roll is a Lucky Roll with a higher chance to get a better rarity.
-Every roll has a 5% chance to be Shiny, which is a special cosmetic trait that does not affect rarity but is noted in the hero's details.
-
-To view your hero collection, use the command `!HerosGodPool`
-To remove one hero by number, use `!Dishero <number>`
-To delete your entire collection, use `!DeleteAllHerosGodPool`
-To preserve a hero from deletion, use `!PreserveHero <number>` (It will not be deleted by the delete all command, but it can still be deleted individually with `!Dishero <number>`)
-To view a hero's full details, use `!ViewHero <number>`
-To check in with your hero and get a random action, use `!HeroCheckIn`
+Commands:
+`!HerosGodPool`, `!Dishero <id>` (Deletes a hero), `!DeleteAllHerosGodPool`, `!PreserveHero <id>` (Prevents a hero from being deleted by `!DeleteAllHerosGodPool`), `!ViewHero <id>`, `!HeroCheckIn`
 """
     await ctx.send(msg)
 
@@ -1560,125 +1530,117 @@ async def dishero(ctx, hero_number: int):
 
 @bot.event
 async def on_message(message):
+    await bot.process_commands(message)
+
     if message.author.bot:
         return
 
-    await bot.process_commands(message)
+    if message.content.startswith("CH_"):
+        try:
+            parts = message.content.split("_")
 
-    content = message.content.strip()
-    if content.startswith("!"):
-        content = content[1:]
+            alignment = parts[1]
+            divinity = parts[2]
+            race = parts[3]
+            element = parts[4]
+            clazz = parts[5]
 
-    if not content.upper().startswith("CH_"):
-        return
+            roll_count = increment_user_roll_count(message.author.id)
+            is_lucky = roll_count % 10 == 0
 
-    try:
-        parts = content.split("_")
-        if len(parts) != 6:
-            raise ValueError("Invalid hero creation format. Use `CH_Alignment_Divinity_Race_Element_Class`.")
+            # Rolls
+            align_roll = roll(ALIGNMENT_MODS[alignment])
+            div_roll = roll(DIVINITY_MODS[divinity])
+            elem_roll = roll(ELEMENT_MODS)
+            class_roll = roll(CLASS_MODS)
+            shiny_chance = 0.05
 
-        alignment = parts[1]
-        divinity = parts[2]
-        race = parts[3]
-        element = parts[4]
-        clazz = parts[5]
+            align_roll, div_roll, elem_roll, class_roll, shiny_chance = apply_event_boosts(
+                alignment,
+                divinity,
+                element,
+                clazz,
+                race,
+                align_roll,
+                div_roll,
+                elem_roll,
+                class_roll,
+                shiny_chance,
+            )
 
-        roll_count = increment_user_roll_count(message.author.id)
-        is_lucky = roll_count % 10 == 0
+            total_score = align_roll + div_roll + elem_roll + class_roll
+            lucky_bonus = 0.0
+            if is_lucky:
+                lucky_bonus = random.uniform(0.5, 1.0)
+                total_score += lucky_bonus
 
-        # Rolls
-        align_roll = roll(ALIGNMENT_MODS[alignment])
-        div_roll = roll(DIVINITY_MODS[divinity])
-        elem_roll = roll(ELEMENT_MODS)
-        class_roll = roll(CLASS_MODS)
-        shiny_chance = 0.05
+            rarity = get_rarity(total_score)
 
-        align_roll, div_roll, elem_roll, class_roll, shiny_chance = apply_event_boosts(
-            alignment,
-            divinity,
-            element,
-            clazz,
-            race,
-            align_roll,
-            div_roll,
-            elem_roll,
-            class_roll,
-            shiny_chance,
-        )
+            class_title = get_class_title(class_roll)
 
-        total_score = align_roll + div_roll + elem_roll + class_roll
-        lucky_bonus = 0.0
-        if is_lucky:
-            lucky_bonus = random.uniform(0.5, 1.0)
-            total_score += lucky_bonus
+            element_good, element_bad = ELEMENTS[element]
 
-        rarity = get_rarity(total_score)
+            element_title = element  # default for okay rolls
+            if elem_roll > 0.1:
+                element_title = element_good
+                element_part = f" the {element_good}"
+            elif elem_roll < -0.1:
+                element_title = element_bad
+                element_part = f" the {element_bad}"
+            else:
+                element_part = ""
 
-        class_title = get_class_title(class_roll)
+            name = random_name()
+            feat = roll_feat(rarity)
+            
+            # Shiny chance (small chance)
+            is_shiny = random.random() < shiny_chance
 
-        element_good, element_bad = ELEMENTS[element]
+            final_name = f"{class_title} {clazz} {name}{element_part} - ({rarity})"
 
-        element_title = element  # default for okay rolls
-        if elem_roll > 0.1:
-            element_title = element_good
-            element_part = f" the {element_good}"
-        elif elem_roll < -0.1:
-            element_title = element_bad
-            element_part = f" the {element_bad}"
-        else:
-            element_part = ""
+            # Store hero data
+            created_at = datetime.datetime.now().strftime("%H:%M:%S %d %B %Y")
 
-        name = random_name()
-        feat = roll_feat(rarity)
-        
-        # Shiny chance (small chance)
-        is_shiny = random.random() < shiny_chance
+            hero_data = {
+                "full_name": final_name,
+                "class": clazz,
+                "rarity": rarity,
+                "divinity": divinity,
+                "alignment": alignment,
+                "race": race,
+                "element": element_title,
+                "feat": feat,
+                "shiny": is_shiny,
+                "preserved": False,
+                "created_at": created_at
+            }
+            
+            add_hero_to_user(message.author.id, hero_data)
 
-        final_name = f"{class_title} {clazz} {name}{element_part} - ({rarity})"
+            embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
+            embed.add_field(name="Hero", value=final_name, inline=False)
+            embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
+            embed.add_field(name="Rolled At", value=created_at, inline=False)
+            if is_shiny:
+                embed.add_field(name="SHINY", value="This hero is SHINY!", inline=False)
+            embed.add_field(name="Feat", value=feat, inline=False)
+            embed.add_field(name="Class", value=f"{clazz} ({class_title})", inline=True)
+            embed.add_field(name="Class Modifier", value=f"{class_roll:.2f}", inline=True)
+            embed.add_field(name="Element", value=f"{element} ({element_title})", inline=True)
+            embed.add_field(name="Element Modifier", value=f"{elem_roll:.2f}", inline=True)
+            embed.add_field(name="Divinity", value=f"{divinity} ({div_roll:.2f})", inline=True)
+            embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
+            embed.add_field(name="Race", value=race, inline=True)
+            if is_lucky:
+                embed.add_field(name="Lucky Roll", value=f"Yes (+{lucky_bonus:.2f})", inline=True)
+            else:
+                embed.add_field(name="Lucky Roll", value="No", inline=True)
+            embed.set_footer(text=f"Hero added to your collection! Roll #{roll_count}.")
 
-        # Store hero data
-        created_at = datetime.datetime.now().strftime("%H:%M:%S %d %B %Y")
+            await message.channel.send(embed=embed)
 
-        hero_data = {
-            "full_name": final_name,
-            "class": clazz,
-            "rarity": rarity,
-            "divinity": divinity,
-            "alignment": alignment,
-            "race": race,
-            "element": element_title,
-            "feat": feat,
-            "shiny": is_shiny,
-            "preserved": False,
-            "created_at": created_at
-        }
-        
-        add_hero_to_user(message.author.id, hero_data)
-
-        embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
-        embed.add_field(name="Hero", value=final_name, inline=False)
-        embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
-        embed.add_field(name="Rolled At", value=created_at, inline=False)
-        if is_shiny:
-            embed.add_field(name="SHINY", value="This hero is SHINY!", inline=False)
-        embed.add_field(name="Feat", value=feat, inline=False)
-        embed.add_field(name="Class", value=f"{clazz} ({class_title})", inline=True)
-        embed.add_field(name="Class Modifier", value=f"{class_roll:.2f}", inline=True)
-        embed.add_field(name="Element", value=f"{element} ({element_title})", inline=True)
-        embed.add_field(name="Element Modifier", value=f"{elem_roll:.2f}", inline=True)
-        embed.add_field(name="Divinity", value=f"{divinity} ({div_roll:.2f})", inline=True)
-        embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
-        embed.add_field(name="Race", value=race, inline=True)
-        if is_lucky:
-            embed.add_field(name="Lucky Roll", value=f"Yes (+{lucky_bonus:.2f})", inline=True)
-        else:
-            embed.add_field(name="Lucky Roll", value="No", inline=True)
-        embed.set_footer(text=f"Hero added to your collection! Roll #{roll_count}.")
-
-        await message.channel.send(embed=embed)
-
-    except Exception as e:
-        await message.channel.send(f"Error creating hero: {e}")
+        except Exception as e:
+            await message.channel.send(f"Error creating hero: {e}")
 
 
 bot.run(TOKEN)
