@@ -5,10 +5,19 @@ import json
 from pathlib import Path
 from dotenv import load_dotenv
 from discord.ext import commands
+import requests
 
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
+GIST_ID = os.getenv("GIST_ID")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+GIST_URL = f"https://api.github.com/gists/{GIST_ID}"
+HEADERS = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+
+# Fallback to local files if Gist not configured
+USE_GIST = GIST_ID and GITHUB_TOKEN
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -23,30 +32,98 @@ HEROES_FILE = Path("user_heroes.json")
 ROLL_COUNTER_FILE = Path("user_roll_counts.json")
 
 def load_user_heroes():
-    """Load all user heroes from file"""
-    if HEROES_FILE.exists():
-        with open(HEROES_FILE, "r") as f:
-            return json.load(f)
-    return {}
+    """Load all user heroes from Gist or file"""
+    if USE_GIST:
+        try:
+            response = requests.get(GIST_URL, headers=HEADERS)
+            if response.status_code == 200:
+                gist_data = response.json()
+                heroes_content = gist_data['files'].get('user_heroes.json', {}).get('content', '{}')
+                return json.loads(heroes_content)
+            else:
+                print(f"Failed to load from Gist: {response.status_code}")
+                return {}
+        except Exception as e:
+            print(f"Error loading from Gist: {e}")
+            return {}
+    else:
+        if HEROES_FILE.exists():
+            with open(HEROES_FILE, "r") as f:
+                return json.load(f)
+        return {}
 
 def save_user_heroes(heroes_data):
-    """Save all user heroes to file"""
-    with open(HEROES_FILE, "w") as f:
-        json.dump(heroes_data, f, indent=2)
+    """Save all user heroes to Gist or file"""
+    if USE_GIST:
+        try:
+            # Get current Gist data
+            response = requests.get(GIST_URL, headers=HEADERS)
+            if response.status_code == 200:
+                gist_data = response.json()
+                files = gist_data.get('files', {})
+                # Update heroes
+                files['user_heroes.json'] = {
+                    "content": json.dumps(heroes_data, indent=2)
+                }
+                data = {"files": files}
+                response = requests.patch(GIST_URL, headers=HEADERS, json=data)
+                if response.status_code not in [200, 201]:
+                    print(f"Failed to save heroes to Gist: {response.status_code}")
+            else:
+                print(f"Failed to fetch Gist for saving: {response.status_code}")
+        except Exception as e:
+            print(f"Error saving heroes to Gist: {e}")
+    else:
+        with open(HEROES_FILE, "w") as f:
+            json.dump(heroes_data, f, indent=2)
 
 
 def load_user_roll_counts():
     """Load persisted roll counts for users."""
-    if ROLL_COUNTER_FILE.exists():
-        with open(ROLL_COUNTER_FILE, "r") as f:
-            return json.load(f)
-    return {}
+    if USE_GIST:
+        try:
+            response = requests.get(GIST_URL, headers=HEADERS)
+            if response.status_code == 200:
+                gist_data = response.json()
+                counts_content = gist_data['files'].get('user_roll_counts.json', {}).get('content', '{}')
+                return json.loads(counts_content)
+            else:
+                print(f"Failed to load roll counts from Gist: {response.status_code}")
+                return {}
+        except Exception as e:
+            print(f"Error loading roll counts from Gist: {e}")
+            return {}
+    else:
+        if ROLL_COUNTER_FILE.exists():
+            with open(ROLL_COUNTER_FILE, "r") as f:
+                return json.load(f)
+        return {}
 
 
 def save_user_roll_counts(counts):
     """Save persisted roll counts for users."""
-    with open(ROLL_COUNTER_FILE, "w") as f:
-        json.dump(counts, f, indent=2)
+    if USE_GIST:
+        try:
+            # Get current Gist data
+            response = requests.get(GIST_URL, headers=HEADERS)
+            if response.status_code == 200:
+                gist_data = response.json()
+                files = gist_data.get('files', {})
+                # Update roll counts
+                files['user_roll_counts.json'] = {
+                    "content": json.dumps(counts, indent=2)
+                }
+                data = {"files": files}
+                response = requests.patch(GIST_URL, headers=HEADERS, json=data)
+                if response.status_code not in [200, 201]:
+                    print(f"Failed to save roll counts to Gist: {response.status_code}")
+            else:
+                print(f"Failed to fetch Gist for saving: {response.status_code}")
+        except Exception as e:
+            print(f"Error saving roll counts to Gist: {e}")
+    else:
+        with open(ROLL_COUNTER_FILE, "w") as f:
+            json.dump(counts, f, indent=2)
 
 
 def increment_user_roll_count(user_id):
@@ -933,11 +1010,11 @@ async def heros_god_pool(ctx):
     user_heroes = get_user_heroes(ctx.author.id)
     
     if not user_heroes:
-        await ctx.send(f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **0 heroes** in your collection. Create one with `CH_Alignment_Divinity_Race_Element_Class`!")
+        await ctx.send(f"**HERO COLLECTION — {ctx.author.name}**\n\nYou currently have **0 heroes** in your collection. Create one with `CH_Alignment_Divinity_Race_Element_Class`!")
         return
     
     # Build the message with just name, rarity, and ID
-    message = f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
+    message = f"**HERO COLLECTION — {ctx.author.name}**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
     
     for hero in user_heroes:
         message += f"**#{hero['id']}** | {hero['full_name']} | ⭐ {hero['rarity']}\n"
@@ -948,7 +1025,7 @@ async def heros_god_pool(ctx):
     if len(message) > 2000:
         # Split into multiple messages
         chunks = []
-        current = f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
+        current = f"**HERO COLLECTION — {ctx.author.name}**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
         
         for hero in user_heroes:
             hero_text = f"**#{hero['id']}** | {hero['full_name']} | ⭐ {hero['rarity']}\n"
@@ -983,17 +1060,17 @@ async def view_hero(ctx, hero_id: int):
         await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
         return
     
-    message = f"**⚔️ HERO DETAILS — #{hero_id} ⚔️**\n\n"
-    message += f"🏷️ **Name:** {hero['full_name']}\n"
-    message += f"⭐ **Rarity:** {hero['rarity']}\n"
-    message += f"⚔️ **Class:** {hero['class']}\n"
-    message += f"🌟 **Divinity:** {hero['divinity']}\n"
-    message += f"⚖️ **Alignment:** {hero['alignment']}\n"
-    message += f"🧬 **Race:** {hero['race']}\n"
-    message += f"🌊 **Element:** {hero['element']}\n"
-    message += f"🔥 **Feat:** {hero['feat']}\n"
+    message = f"**HERO DETAILS — #{hero_id}**\n\n"
+    message += f"**Name:** {hero['full_name']}\n"
+    message += f"**Rarity:** {hero['rarity']}\n"
+    message += f"**Class:** {hero['class']}\n"
+    message += f"**Divinity:** {hero['divinity']}\n"
+    message += f"**Alignment:** {hero['alignment']}\n"
+    message += f"**Race:** {hero['race']}\n"
+    message += f"**Element:** {hero['element']}\n"
+    message += f"**Feat:** {hero['feat']}\n"
     if hero.get('shiny', False):
-        message += f"\n✨ **This hero is SHINY!** ✨\n"
+        message += f"\n**This hero is SHINY!**\n"
     
     await ctx.send(message)
 
@@ -1176,7 +1253,7 @@ async def on_message(message):
             embed.add_field(name="Hero", value=final_name, inline=False)
             embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
             if is_shiny:
-                embed.add_field(name="✨ SHINY ✨", value="This hero is SHINY!", inline=False)
+                embed.add_field(name="SHINY", value="This hero is SHINY!", inline=False)
             embed.add_field(name="Feat", value=feat, inline=False)
             embed.add_field(name="Divinity", value=f"{divinity} ({div_roll:.2f})", inline=True)
             embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
@@ -1187,7 +1264,7 @@ async def on_message(message):
                 embed.add_field(name="Lucky Roll", value=f"Yes (+{lucky_bonus:.2f})", inline=True)
             else:
                 embed.add_field(name="Lucky Roll", value="No", inline=True)
-            embed.set_footer(text=f"✅ Hero added to your collection! Roll #{roll_count}.")
+            embed.set_footer(text=f"Hero added to your collection! Roll #{roll_count}.")
 
             await message.channel.send(embed=embed)
 
