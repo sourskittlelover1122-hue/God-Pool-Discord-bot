@@ -40,7 +40,8 @@ def add_hero_to_user(user_id, hero_data):
     
     if user_id_str not in heroes:
         heroes[user_id_str] = []
-    
+
+    hero_data["id"] = get_next_hero_id(user_id)
     heroes[user_id_str].append(hero_data)
     save_user_heroes(heroes)
 
@@ -48,6 +49,19 @@ def get_user_heroes(user_id):
     """Get all heroes for a specific user"""
     heroes = load_user_heroes()
     return heroes.get(str(user_id), [])
+
+def get_next_hero_id(user_id):
+    """Get the next hero ID for a user's collection."""
+    user_heroes = get_user_heroes(user_id)
+    max_id = 0
+    for hero in user_heroes:
+        try:
+            hero_id = int(hero.get("id", 0))
+            if hero_id > max_id:
+                max_id = hero_id
+        except (TypeError, ValueError):
+            continue
+    return max_id + 1
 
 # =========================
 # 🔥 PASTE NAME LISTS HERE
@@ -660,6 +674,8 @@ Classes:
 Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander
 
 To view your hero collection, use the command `!HerosGodPool`
+To remove one hero by number, use `!Dishero <number>`
+To delete your entire collection, use `!DeleteAllHerosGodPool`
 """
     await ctx.send(msg)
 
@@ -676,7 +692,7 @@ async def heros_god_pool(ctx):
     message = f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
     
     for hero in user_heroes:
-        message += f"🏷️ Hero Name: {hero['full_name']}\n"
+        message += f"**#{hero['id']}** 🏷️ Hero Name: {hero['full_name']}\n"
         message += f"⭐ Rarity: {hero['rarity']}\n"
         message += f"⚔️ Class: {hero['class']}\n"
         message += f"🌟 Divinity: {hero['divinity']}\n"
@@ -692,7 +708,7 @@ async def heros_god_pool(ctx):
         current = f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
         
         for hero in user_heroes:
-            hero_text = f"🏷️ Hero Name: {hero['full_name']}\n⭐ Rarity: {hero['rarity']}\n⚔️ Class: {hero['class']}\n🌟 Divinity: {hero['divinity']}\n⚖️ Alignment: {hero['alignment']}\n🧬 Race: {hero['race']}\n🌊 Element: {hero['element']}\n🔥 Feat: {hero['feat']}\n\n"
+            hero_text = f"**#{hero['id']}** 🏷️ Hero Name: {hero['full_name']}\n⭐ Rarity: {hero['rarity']}\n⚔️ Class: {hero['class']}\n🌟 Divinity: {hero['divinity']}\n⚖️ Alignment: {hero['alignment']}\n🧬 Race: {hero['race']}\n🌊 Element: {hero['element']}\n🔥 Feat: {hero['feat']}\n\n"
             
             if len(current) + len(hero_text) > 2000:
                 chunks.append(current)
@@ -708,6 +724,45 @@ async def heros_god_pool(ctx):
     else:
         await ctx.send(message)
 
+
+@bot.command(name="DeleteAllHerosGodPool")
+async def delete_all_heros_god_pool(ctx):
+    """Delete every hero in the calling user's collection."""
+    heroes = load_user_heroes()
+    user_id_str = str(ctx.author.id)
+
+    if not heroes.get(user_id_str):
+        await ctx.send("You do not have any heroes to delete.")
+        return
+
+    heroes[user_id_str] = []
+    save_user_heroes(heroes)
+    await ctx.send(f"All heroes from **{ctx.author.name}**'s collection have been deleted.")
+
+@bot.command(name="Dishero")
+async def dishero(ctx, hero_number: int):
+    """Delete a specific hero from the user's collection by its listed number."""
+    heroes = load_user_heroes()
+    user_id_str = str(ctx.author.id)
+    user_heroes = heroes.get(user_id_str, [])
+
+    if not user_heroes:
+        await ctx.send("You do not have any heroes in your collection.")
+        return
+
+    hero_to_remove = None
+    for hero in user_heroes:
+        if hero.get("id") == hero_number:
+            hero_to_remove = hero
+            break
+
+    if not hero_to_remove:
+        await ctx.send(f"No hero with number **{hero_number}** was found in your collection.")
+        return
+
+    heroes[user_id_str] = [hero for hero in user_heroes if hero.get("id") != hero_number]
+    save_user_heroes(heroes)
+    await ctx.send(f"Hero **#{hero_number}** `{hero_to_remove['full_name']}` has been removed from your collection.")
 
 @bot.event
 async def on_message(message):
@@ -768,6 +823,7 @@ async def on_message(message):
 
             embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
             embed.add_field(name="Hero", value=final_name, inline=False)
+            embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
             embed.add_field(name="Feat", value=feat, inline=False)
             embed.add_field(name="Divinity", value=f"{divinity} ({div_roll:.2f})", inline=True)
             embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
