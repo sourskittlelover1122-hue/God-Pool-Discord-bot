@@ -317,6 +317,7 @@ def build_event_state(event):
         "started_at": now.isoformat(),
         "expires_at": (now + datetime.timedelta(seconds=EVENT_DURATION_SECONDS)).isoformat(),
         "next_announcement_at": (now + datetime.timedelta(seconds=EVENT_MESSAGE_INTERVAL_SECONDS)).isoformat(),
+        "announcement_messages": [],
     }
 
 
@@ -368,13 +369,48 @@ def get_announcement_channel(guild):
 
 async def send_global_announcement(message):
     """Send the same announcement message to every guild the bot is in."""
+    sent_messages = []
     for guild in bot.guilds:
         channel = get_announcement_channel(guild)
         if channel is not None:
             try:
-                await channel.send(message)
+                msg = await channel.send(message)
+                sent_messages.append({
+                    "guild_id": guild.id,
+                    "channel_id": channel.id,
+                    "message_id": msg.id,
+                })
             except Exception as e:
                 print(f"Failed to send announcement to {guild.name}: {e}")
+    return sent_messages
+
+
+@tasks.loop(seconds=60)
+async def event_countdown_updater():
+    """Update the remaining time on active event announcement messages."""
+    state = load_event_state()
+    if not state or not is_event_active(state):
+        return
+    announcement_messages = state.get("announcement_messages", [])
+    if not announcement_messages:
+        return
+    updated_message = format_event_announcement(state)
+    for entry in announcement_messages:
+        guild = bot.get_guild(entry["guild_id"])
+        if not guild:
+            continue
+        channel = guild.get_channel(entry["channel_id"])
+        if not channel:
+            continue
+        try:
+            msg = await channel.fetch_message(entry["message_id"])
+            await msg.edit(content=updated_message)
+        except discord.NotFound:
+            continue
+        except discord.Forbidden:
+            continue
+        except Exception as e:
+            print(f"Failed to update event countdown for guild {guild.name}: {e}")
 
 
 def is_event_active(state):
@@ -1284,6 +1320,8 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
     if not event_scheduler.is_running():
         event_scheduler.start()
+    if not event_countdown_updater.is_running():
+        event_countdown_updater.start()
 
 
 @tasks.loop(minutes=1)
@@ -1295,7 +1333,9 @@ async def event_scheduler():
         previous_name = state.get("name") if state else None
         new_state = choose_and_activate_event(exclude_name=previous_name)
         announcement = format_event_announcement(new_state)
-        await send_global_announcement(announcement)
+        sent_messages = await send_global_announcement(announcement)
+        new_state["announcement_messages"] = sent_messages
+        set_current_event(new_state)
 
 
 @bot.command(name="CH")
@@ -1520,7 +1560,9 @@ async def force_god_weather(ctx):
     current_state = load_event_state() or {}
     next_state = choose_and_activate_event(exclude_name=current_state.get("name"))
     announcement = format_event_announcement(next_state, forced_by=ctx.author.name)
-    await send_global_announcement(announcement)
+    sent_messages = await send_global_announcement(announcement)
+    next_state["announcement_messages"] = sent_messages
+    set_current_event(next_state)
     await ctx.send(f"The event timer has been reset and the new event **{next_state['name']}** is now active for 7 hours.")
 
 @bot.command(name="Dishero")
