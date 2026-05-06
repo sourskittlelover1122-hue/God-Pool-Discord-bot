@@ -1,6 +1,8 @@
 import discord
 import os
 import random
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 from discord.ext import commands
 
@@ -13,6 +15,39 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# =========================
+# 💾 USER HERO STORAGE
+# =========================
+
+HEROES_FILE = Path("user_heroes.json")
+
+def load_user_heroes():
+    """Load all user heroes from file"""
+    if HEROES_FILE.exists():
+        with open(HEROES_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_user_heroes(heroes_data):
+    """Save all user heroes to file"""
+    with open(HEROES_FILE, "w") as f:
+        json.dump(heroes_data, f, indent=2)
+
+def add_hero_to_user(user_id, hero_data):
+    """Add a hero to a user's collection"""
+    heroes = load_user_heroes()
+    user_id_str = str(user_id)
+    
+    if user_id_str not in heroes:
+        heroes[user_id_str] = []
+    
+    heroes[user_id_str].append(hero_data)
+    save_user_heroes(heroes)
+
+def get_user_heroes(user_id):
+    """Get all heroes for a specific user"""
+    heroes = load_user_heroes()
+    return heroes.get(str(user_id), [])
 
 # =========================
 # 🔥 PASTE NAME LISTS HERE
@@ -603,7 +638,7 @@ async def create_hero(ctx):
 **Hero Creation Format**
 Send your hero like this:
 
-`CH_(Alignment)_(Divinity)_(Race)_(Element)_(Class)`
+`CH_Alignment_Divinity_Race_Element_Class`
 
 ---
 
@@ -623,8 +658,55 @@ Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, L
 
 Classes:
 Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander
+
+To view your hero collection, use the command `!HerosGodPool`
 """
     await ctx.send(msg)
+
+@bot.command(name="HerosGodPool")
+async def heros_god_pool(ctx):
+    """Display all heroes in a user's collection"""
+    user_heroes = get_user_heroes(ctx.author.id)
+    
+    if not user_heroes:
+        await ctx.send(f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **0 heroes** in your collection. Create one with `CH_Alignment_Divinity_Race_Element_Class`!")
+        return
+    
+    # Build the message
+    message = f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
+    
+    for hero in user_heroes:
+        message += f"🏷️ Hero Name: {hero['full_name']}\n"
+        message += f"⭐ Rarity: {hero['rarity']}\n"
+        message += f"⚔️ Class: {hero['class']}\n"
+        message += f"🌟 Divinity: {hero['divinity']}\n"
+        message += f"⚖️ Alignment: {hero['alignment']}\n"
+        message += f"🧬 Race: {hero['race']}\n"
+        message += f"🌊 Element: {hero['element']}\n"
+        message += f"🔥 Feat: {hero['feat']}\n\n"
+    
+    # Discord has a 2000 character limit per message, so split if needed
+    if len(message) > 2000:
+        # Split into multiple messages
+        chunks = []
+        current = f"**⚔️ HERO COLLECTION — {ctx.author.name} ⚔️**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
+        
+        for hero in user_heroes:
+            hero_text = f"🏷️ Hero Name: {hero['full_name']}\n⭐ Rarity: {hero['rarity']}\n⚔️ Class: {hero['class']}\n🌟 Divinity: {hero['divinity']}\n⚖️ Alignment: {hero['alignment']}\n🧬 Race: {hero['race']}\n🌊 Element: {hero['element']}\n🔥 Feat: {hero['feat']}\n\n"
+            
+            if len(current) + len(hero_text) > 2000:
+                chunks.append(current)
+                current = hero_text
+            else:
+                current += hero_text
+        
+        if current:
+            chunks.append(current)
+        
+        for chunk in chunks:
+            await ctx.send(chunk)
+    else:
+        await ctx.send(message)
 
 
 @bot.event
@@ -670,6 +752,20 @@ async def on_message(message):
 
             final_name = f"{class_title} {clazz} {name} the {element_title} - ({rarity})"
 
+            # Store hero data
+            hero_data = {
+                "full_name": final_name,
+                "class": clazz,
+                "rarity": rarity,
+                "divinity": divinity,
+                "alignment": alignment,
+                "race": race,
+                "element": element_title,
+                "feat": feat
+            }
+            
+            add_hero_to_user(message.author.id, hero_data)
+
             embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
             embed.add_field(name="Hero", value=final_name, inline=False)
             embed.add_field(name="Feat", value=feat, inline=False)
@@ -678,6 +774,7 @@ async def on_message(message):
             embed.add_field(name="Race", value=race, inline=True)
             embed.add_field(name="Class Roll", value=f"{class_roll:.2f}", inline=True)
             embed.add_field(name="Element Roll", value=f"{elem_roll:.2f}", inline=True)
+            embed.set_footer(text="✅ Hero added to your collection!")
 
             await message.channel.send(embed=embed)
 
