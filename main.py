@@ -923,7 +923,7 @@ To remove one hero by number, use `!Dishero <number>`
 To delete your entire collection, use `!DeleteAllHerosGodPool`
 To preserve a hero from deletion, use `!PreserveHero <number>` (It will not be deleted by the delete all command, but it can still be deleted individually with `!Dishero <number>`)
 To view a hero's full details, use `!ViewHero <number>`
-To check in with your hero and get a random action, use `!CheckIn`
+To check in with your hero and get a random action, use `!HeroCheckIn`
 """
     await ctx.send(msg)
 
@@ -1074,7 +1074,7 @@ async def hero_checkin(ctx, hero_id: int):
     action = random.choice(CHECKIN_ACTIONS)
     hero_name = hero['full_name']
     
-    message = f"What is {hero_name} doing?\n\n{hero_name} **is currently** {action}"
+    message = f"What is {hero_name} doing?\n\n{hero_name} **is currently {action}**"
     
     await ctx.send(message)
 
