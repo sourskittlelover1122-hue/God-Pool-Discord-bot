@@ -1020,30 +1020,30 @@ ALIGNMENT_MODS = {
 }
 
 DIVINITY_MODS = {
-    "Divine": (0.77, 2.00),
-    "Neutral": (0.8, 1.85),
-    "Hellish": (0.6, 2.3),
+    "Divine": (0.82, 1.80),
+    "Neutral": (0.83, 1.70),
+    "Hellish": (0.70, 2.00),
 }
 
-ELEMENT_MODS = (0.8, 1.0)
-CLASS_MODS = (0.8, 1.0)
+ELEMENT_MODS = (0.85, 0.98)
+CLASS_MODS = (0.85, 0.98)
 
 
 RARITY_TIERS = [
     (0.0, "Common"),
-    (0.55, "Trained"),
-    (0.8, "Uncommon"),
-    (1.2, "Handy"),
-    (1.7, "Rare"),
-    (3.9, "Pseudo"),
-    (4.5, "Genisis"),
-    (5.75, "Legendary"),
-    (6.4, "Mythical"),
-    (7.1, "Ethereal"),
-    (8.9, "Ascendant"),
-    (9.5, "Primordial"),
-    (10.0, "Omni"),
-    (11.0, "God-Challenger"),
+    (0.65, "Trained"),
+    (0.95, "Uncommon"),
+    (1.4, "Handy"),
+    (2.6, "Rare"),
+    (4.0, "Pseudo"),
+    (5.0, "Genisis"),
+    (6.2, "Legendary"),
+    (7.0, "Mythical"),
+    (8.0, "Ethereal"),
+    (9.2, "Ascendant"),
+    (10.3, "Primordial"),
+    (11.5, "Omni"),
+    (12.8, "God-Challenger"),
 ]
 
 
