@@ -1012,38 +1012,38 @@ FEATS_BY_RARITY = {
 
 # Multiplicative modifiers (1.0 = neutral, >1.0 = boost, <1.0 = penalty)
 ALIGNMENT_MODS = {
-    "Valiant": (1.3, 1.95),
-    "Good": (1.15, 1.8),
-    "Neutral": (0.95, 1.55),
-    "Mischievous": (0.85, 1.95),
-    "Evil": (0.65, 1.95),
+    "Valiant": (0.9, 2.35),
+    "Good": (1.10, 1.85),
+    "Neutral": (0.95, 1.85),
+    "Mischievous": (0.65, 2.65),
+    "Evil": (0.58, 2.75),
 }
 
 DIVINITY_MODS = {
-    "Divine": (0.9, 1.95),
-    "Neutral": (0.8, 1.6),
-    "Hellish": (0.7, 2.0),
+    "Divine": (0.77, 2.00),
+    "Neutral": (0.8, 1.85),
+    "Hellish": (0.6, 2.3),
 }
 
-ELEMENT_MODS = (0.8, 1.2)
-CLASS_MODS = (0.8, 1.2)
+ELEMENT_MODS = (0.8, 1.0)
+CLASS_MODS = (0.8, 1.0)
 
 
 RARITY_TIERS = [
     (0.0, "Common"),
-    (0.35, "Trained"),
+    (0.55, "Trained"),
     (0.8, "Uncommon"),
     (1.2, "Handy"),
     (1.7, "Rare"),
-    (2.3, "Pseudo"),
-    (3.0, "Genisis"),
-    (3.75, "Legendary"),
-    (4.4, "Mythical"),
-    (5.1, "Ethereal"),
-    (5.9, "Ascendant"),
-    (6.8, "Primordial"),
-    (8.0, "Omni"),
-    (9.6, "God-Challenger"),
+    (3.9, "Pseudo"),
+    (4.5, "Genisis"),
+    (5.75, "Legendary"),
+    (6.4, "Mythical"),
+    (7.1, "Ethereal"),
+    (8.9, "Ascendant"),
+    (9.5, "Primordial"),
+    (10.0, "Omni"),
+    (11.0, "God-Challenger"),
 ]
 
 
@@ -1056,7 +1056,7 @@ CLASS_TIERS = [
     (0.85, "Okay"),
     (0.95, "Apprentice"),
     (1.02, "Journeyer"),
-    (1.08, "Masterclass"),
+    (1.08, "Elite"),
     (1.13, "Chief"),
     (1.17, "Masterclass"),
     (1.2, "Transcendent"),
