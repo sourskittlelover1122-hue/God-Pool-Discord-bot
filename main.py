@@ -477,7 +477,7 @@ def choose_and_activate_event(exclude_name=None):
 
 
 def apply_event_boosts(alignment, divinity, element, clazz, race, align_roll, div_roll, elem_roll, class_roll, shiny_chance):
-    """Modify roll values based on the active event."""
+    """Modify roll values based on the active event (multiplicative system)."""
     state = get_current_event()
     if not is_event_active(state):
         return align_roll, div_roll, elem_roll, class_roll, shiny_chance
@@ -485,76 +485,76 @@ def apply_event_boosts(alignment, divinity, element, clazz, race, align_roll, di
     event_name = state["name"]
     if event_name == "Blood Moon Rising":
         if alignment in ["Death", "Corruption", "Evil"]:
-            align_roll += random.uniform(0.4, 0.9)
+            align_roll *= random.uniform(1.4, 1.9)
     elif event_name == "Celestial Convergence":
         if divinity == "Divine":
-            div_roll += random.uniform(0.35, 0.75)
+            div_roll *= random.uniform(1.35, 1.75)
         if element == "Celestial":
-            elem_roll += random.uniform(0.35, 0.75)
+            elem_roll *= random.uniform(1.35, 1.75)
     elif event_name == "Infernal Surge":
         if element in ["Lava", "Magma", "Fire"]:
-            elem_roll += random.uniform(0.25, 0.7)
+            elem_roll *= random.uniform(1.25, 1.7)
             if random.random() < 0.2:
-                elem_roll += random.uniform(-0.45, 0.3)
+                elem_roll *= random.uniform(0.55, 1.3)
     elif event_name == "The Hollow Fog":
         if element in ["Mist", "Dark"]:
             shiny_chance += 0.12
     elif event_name == "Verdant Bloom":
         if element in ["Plants", "Life"]:
-            elem_roll += random.uniform(0.25, 0.7)
-            if elem_roll < 0:
-                elem_roll *= 0.5
+            elem_roll *= random.uniform(1.25, 1.7)
+            if elem_roll < 1.0:
+                elem_roll *= 0.75
     elif event_name == "Thunder Dominion":
         if element in ["Lightning", "Air"]:
-            class_roll += random.uniform(0.25, 0.65)
+            class_roll *= random.uniform(1.25, 1.65)
     elif event_name == "The Drowned Tide":
         if element in ["Water", "Rain"]:
-            elem_roll += random.uniform(0.3, 0.75)
+            elem_roll *= random.uniform(1.3, 1.75)
             shiny_chance += 0.1
     elif event_name == "Gravecall Night":
         if race == "Undead" or element == "Death":
-            align_roll += random.uniform(0.5, 1.1)
+            align_roll *= random.uniform(1.5, 2.1)
     elif event_name == "Prismatic Awakening":
         if element in ["Glass", "Crystal", "Color"]:
-            class_roll += random.uniform(0.35, 0.8)
+            class_roll *= random.uniform(1.35, 1.8)
     elif event_name == "The Beast Hunt":
         if race == "Beast" or element == "Beast":
-            class_roll += random.uniform(0.35, 0.8)
+            class_roll *= random.uniform(1.35, 1.8)
     elif event_name == "Eclipse of Judgment":
         align_roll *= random.uniform(1.4, 2.0)
     elif event_name == "Forgeheart Festival":
         if element in ["Steel", "Earth"]:
-            elem_roll += random.uniform(0.35, 0.8)
+            elem_roll *= random.uniform(1.35, 1.8)
     elif event_name == "The Rotting Bloom":
         if element in ["Spore", "Poison"]:
-            elem_roll += random.uniform(0.4, 0.95)
+            elem_roll *= random.uniform(1.4, 1.95)
             shiny_chance += 0.15
     elif event_name == "Starfall Cataclysm":
         if element in ["Celestial", "Equinox"]:
-            align_roll += random.uniform(0.4, 0.9)
-            class_roll += random.uniform(0.25, 0.6)
+            align_roll *= random.uniform(1.4, 1.9)
+            class_roll *= random.uniform(1.25, 1.6)
     elif event_name == "The Ashen Era":
         if element in ["Fire", "Lava", "Magma"]:
-            class_roll += random.uniform(0.35, 0.8)
+            class_roll *= random.uniform(1.35, 1.8)
     elif event_name == "Sanctuary of Dawn":
         if element == "Light" or alignment in ["Good", "Valiant"]:
-            if div_roll < 0:
-                div_roll *= 0.5
-            if align_roll < 0:
-                align_roll *= 0.5
+            if div_roll < 1.0:
+                div_roll *= 1.25
+            if align_roll < 1.0:
+                align_roll *= 1.25
     elif event_name == "The Rift Collapse":
-        elem_roll *= 2
+        elem_roll *= 2.0
     elif event_name == "The Wandering Tempest":
         if element in ["Air", "Rain", "Lightning"]:
-            elem_roll += random.uniform(0.3, 0.75)
+            elem_roll *= random.uniform(1.3, 1.75)
     elif event_name == "Kingdoms at War":
         if clazz in ["Commander", "Paladin", "Admiral", "Warrior"]:
-            class_roll += random.uniform(0.5, 1.0)
+            class_roll *= random.uniform(1.5, 2.0)
     elif event_name == "The Abyss Stares Back":
         if element in ["Corruption", "Dark"] or alignment in ["Mischievous", "Evil"]:
-            bonus = random.uniform(-0.55, 1.1)
-            align_roll += bonus
-            elem_roll += random.uniform(-0.25, 0.25)
+            bonus = random.uniform(0.45, 1.1)
+            align_roll *= bonus
+            elem_roll *= random.uniform(0.75, 1.25)
 
     return align_roll, div_roll, elem_roll, class_roll, shiny_chance
 
@@ -1010,22 +1010,23 @@ FEATS_BY_RARITY = {
 # 🌟 SYSTEM DATA
 # =========================
 
+# Multiplicative modifiers (1.0 = neutral, >1.0 = boost, <1.0 = penalty)
 ALIGNMENT_MODS = {
-    "Valiant": (0.2, 0.9),
-    "Good": (0.1, 0.7),
-    "Neutral": (-0.1, 0.5),
-    "Mischievous": (-0.2, 0.9),
-    "Evil": (-0.4, 0.9),
+    "Valiant": (1.3, 1.95),
+    "Good": (1.15, 1.8),
+    "Neutral": (0.95, 1.55),
+    "Mischievous": (0.85, 1.95),
+    "Evil": (0.65, 1.95),
 }
 
 DIVINITY_MODS = {
-    "Divine": (-0.1, 0.9),
-    "Neutral": (-0.2, 0.6),
-    "Hellish": (-0.3, 1.0),
+    "Divine": (0.9, 1.95),
+    "Neutral": (0.8, 1.6),
+    "Hellish": (0.7, 2.0),
 }
 
-ELEMENT_MODS = (-0.35, 0.35)
-CLASS_MODS = (-0.35, 0.35)
+ELEMENT_MODS = (0.8, 1.2)
+CLASS_MODS = (0.8, 1.2)
 
 
 RARITY_TIERS = [
@@ -1051,14 +1052,14 @@ RARITY_TIERS = [
 # =========================
 
 CLASS_TIERS = [
-    (-999, "Horrible"),
-    (-0.2, "Okay"),
-    (0.0, "Apprentice"),
-    (0.3, "Journeyer"),
-    (0.7, "Masterclass"),
-    (1.2, "Chief"),
-    (1.8, "Masterclass"),
-    (2.5, "Transcendent"),
+    (0.7, "Horrible"),
+    (0.85, "Okay"),
+    (0.95, "Apprentice"),
+    (1.02, "Journeyer"),
+    (1.08, "Masterclass"),
+    (1.13, "Chief"),
+    (1.17, "Masterclass"),
+    (1.2, "Transcendent"),
 ]
 
 
@@ -1489,6 +1490,7 @@ async def view_hero(ctx, hero_id: int):
     message = f"**HERO DETAILS — #{hero_id}**\n\n"
     message += f"**Name:** {hero['full_name']}\n"
     message += f"**Rarity:** {hero['rarity']}\n"
+    message += f"**Rarity Class:** {hero.get('class_title', 'Unknown')}\n"
     message += f"**Class:** {hero['class']}\n"
     message += f"**Divinity:** {hero['divinity']}\n"
     message += f"**Alignment:** {hero['alignment']}\n"
@@ -1706,7 +1708,7 @@ async def on_message(message):
             roll_count = increment_user_roll_count(message.author.id)
             is_lucky = roll_count % 10 == 0
 
-            # Rolls
+            # Rolls (multiplicative system)
             align_roll = roll(ALIGNMENT_MODS[alignment])
             div_roll = roll(DIVINITY_MODS[divinity])
             elem_roll = roll(ELEMENT_MODS)
@@ -1726,11 +1728,11 @@ async def on_message(message):
                 shiny_chance,
             )
 
-            total_score = align_roll + div_roll + elem_roll + class_roll
-            lucky_bonus = 0.0
+            total_score = align_roll * div_roll * elem_roll * class_roll
+            lucky_bonus = 1.0
             if is_lucky:
-                lucky_bonus = random.uniform(0.5, 1.0)
-                total_score += lucky_bonus
+                lucky_bonus = random.uniform(1.1, 1.2)
+                total_score *= lucky_bonus
 
             rarity = get_rarity(total_score)
 
@@ -1739,10 +1741,10 @@ async def on_message(message):
             element_good, element_bad = ELEMENTS[element]
 
             element_title = element  # default for okay rolls
-            if elem_roll > 0.1:
+            if elem_roll > 1.1:
                 element_title = element_good
                 element_part = f" the {element_good}"
-            elif elem_roll < -0.1:
+            elif elem_roll < 0.9:
                 element_title = element_bad
                 element_part = f" the {element_bad}"
             else:
@@ -1762,6 +1764,7 @@ async def on_message(message):
             hero_data = {
                 "full_name": final_name,
                 "class": clazz,
+                "class_title": class_title,
                 "rarity": rarity,
                 "divinity": divinity,
                 "alignment": alignment,
@@ -1791,7 +1794,7 @@ async def on_message(message):
             embed.add_field(name="Alignment", value=f"{alignment} ({align_roll:.2f})", inline=True)
             embed.add_field(name="Race", value=race, inline=True)
             if is_lucky:
-                embed.add_field(name="Lucky Roll", value=f"Yes (+{lucky_bonus:.2f})", inline=True)
+                embed.add_field(name="Lucky Roll", value=f"Yes (x{lucky_bonus:.2f})", inline=True)
             else:
                 embed.add_field(name="Lucky Roll", value="No", inline=True)
             embed.set_footer(text=f"Hero added to your collection! Roll #{roll_count}.")
