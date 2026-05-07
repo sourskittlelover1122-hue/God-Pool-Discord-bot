@@ -1063,6 +1063,9 @@ ELEMENTS = {
     "Ice": ("Frostwarden", "Icebound"),
     "Rain": ("Stormbearer", "Endless Drizzle"),
     "Lava": ("Volcano King", "Burnscarred"),
+    "Blood": ("Bloodsworn", "Vein-Bound"),
+    "Desert": ("Sandwarden", "Dustblighted"),
+    "Arcane": ("Spellhallowed", "Rune-Cursed"),
 }
 
 
@@ -1349,20 +1352,22 @@ Use: `CH_Alignment_Divinity_Race_Element_Class`
 *Choices*
 Alignment: Valiant, Good, Neutral, Mischievous, Evil
 Divinity: Divine, Neutral, Hellish
+
 Race: Human / Construct / Elven / Goblin / Beast / Ogre / Deep-Crawler / Celestial / Angel / Demon / Dwarf / Elemental / Undead / Magma-Crawler
 *Race is flavor only.*
 
-Elements: Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, Lightning, Magma, Spore, Crystal, Color, Plants, Poison, Corruption, Mist, Death, Life, Ice, Rain, Lava
-Classes: Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander
+Elements: Fire, Water, Earth, Air, Steel, Glass, Light, Dark, Equinox, Celestial, Beast, Lightning, Magma, Spore, Crystal, Color, Plants, Poison, Corruption, Mist, Death, Life, Ice, Rain, Lava, Blood, Desert, Arcane
+
+Classes: Warrior, Archer, Assassin, Mage, Paladin, Rogue, Admiral, Sniper, Outlaw, Bard, Scavenger, Ritualist, Commander, Defender, Barbarian
 
 Class ranks: {class_rank_lines}
 
 Overall rarity ranks: {rarity_rank_lines}
 
-Every 10th roll is Lucky. 5% chance for Shiny cosmetic.
+Every 10th roll is Lucky. 5% chance for Shiny.
 
 Commands:
-`!HerosGodPool`, `!Dishero <id>` (Deletes a hero), `!DeleteAllHerosGodPool`, `!PreserveHero <id>` (Prevents a hero from being deleted by `!DeleteAllHerosGodPool`), `!ViewHero <id>`, `!HeroCheckIn`
+`!HerosGodPool`, `!Dishero <id>` (Deletes a hero), `!DeleteAllHerosGodPool`, `!PreserveHero <id>` (Prevents a hero from being deleted by `!DeleteAllHerosGodPool`), `!FavHero <id>`, `!ViewHero <id>`, `!HeroCheckIn`
 """
     await ctx.send(msg)
 
@@ -1379,9 +1384,14 @@ async def heros_god_pool(ctx):
     message = f"**HERO COLLECTION — {ctx.author.name}**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
     
     for hero in user_heroes:
-        message += f"**#{hero['id']}** | {hero['full_name']} | ⭐ {hero['rarity']}\n"
+        icons = ""
+        if hero.get('shiny', False):
+            icons += " ✨"
+        if hero.get('favorite', False):
+            icons += " ❤️"
+        message += f"**#{hero['id']}** | {hero['full_name']}{icons} | ⭐ {hero['rarity']}\n"
     
-    message += f"\n---\n*Use `!ViewHero <number>` to see a hero's full details.*"
+    message += f"\n---\n*Use `!ViewHero <number>` to see a hero's full details.*\n✨ Shiny   ❤️ Favorite"
     
     # Discord has a 2000 character limit per message, so split if needed
     if len(message) > 2000:
@@ -1390,7 +1400,12 @@ async def heros_god_pool(ctx):
         current = f"**HERO COLLECTION — {ctx.author.name}**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
         
         for hero in user_heroes:
-            hero_text = f"**#{hero['id']}** | {hero['full_name']} | ⭐ {hero['rarity']}\n"
+            icons = ""
+            if hero.get('shiny', False):
+                icons += " ✨"
+            if hero.get('favorite', False):
+                icons += " ❤️"
+            hero_text = f"**#{hero['id']}** | {hero['full_name']}{icons} | ⭐ {hero['rarity']}\n"
             
             if len(current) + len(hero_text) > 1900:  # Leave room for footer
                 chunks.append(current)
@@ -1399,12 +1414,32 @@ async def heros_god_pool(ctx):
                 current += hero_text
         
         if current:
-            chunks.append(current + f"\n---\n*Use `!ViewHero <number>` to see a hero's full details.*")
+            chunks.append(current + f"\n---\n*Use `!ViewHero <number>` to see a hero's full details.*\n✨ Shiny   ❤️ Favorite")
         
         for chunk in chunks:
             await ctx.send(chunk)
     else:
         await ctx.send(message)
+
+
+@bot.command(name="GodPoolCmds")
+async def godpool_cmds(ctx):
+    """Display every GodPool command and what it does."""
+    help_text = (
+        "**GodPool Command List**\n\n"
+        "`!CH` — Create a new hero using `CH_Alignment_Divinity_Race_Element_Class`.\n"
+        "`!HerosGodPool` — List your heroes with ID, name, and rarity.\n"
+        "`!ViewHero <id>` — Show full details for one hero.\n"
+        "`!DeleteAllHerosGodPool` — Delete all your heroes except those preserved.\n"
+        "`!PreserveHero <id>` — Toggle preservation so a hero is not deleted by `!DeleteAllHerosGodPool`.\n"
+        "`!FavHero <id>` — Mark a hero as your favorite.\n"
+        "`!NameHero <id> <nickname>` — Rename a hero while preserving its displayed rarity.\n"
+        "`!HeroCheckIn <id>` — Check in on what a hero is currently doing.\n"
+        "`!Dishero <id>` — Delete a specific hero from your collection.\n"
+        "`!ForceGodWeather` — Reset the event timer and choose a new event (only `mrleave`).\n"
+        "`!GodPoolCmds` — Show this command list.\n"
+    )
+    await ctx.send(help_text)
 
 
 @bot.command(name="ViewHero")
@@ -1434,6 +1469,8 @@ async def view_hero(ctx, hero_id: int):
     message += f"**Rolled At:** {hero.get('created_at', 'Unknown')}\n"
     if hero.get('shiny', False):
         message += f"\n**This hero is SHINY!**\n"
+    if hero.get('favorite', False):
+        message += f"\n**This hero is your FAVORITE! ❤️**\n"
     
     await ctx.send(message)
 
@@ -1494,6 +1531,34 @@ async def preserve_hero(ctx, hero_id: int):
         await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is now **PRESERVED** and will not be deleted by `!DeleteAllHerosGodPool`.")
     else:
         await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is no longer preserved.")
+
+
+@bot.command(name="FavHero")
+async def fav_hero(ctx, hero_id: int):
+    """Mark a hero as the user's favorite."""
+    heroes = load_user_heroes()
+    user_id_str = str(ctx.author.id)
+    user_heroes = heroes.get(user_id_str, [])
+
+    if not user_heroes:
+        await ctx.send("You do not have any heroes in your collection.")
+        return
+
+    hero = None
+    for h in user_heroes:
+        if h.get("id") == hero_id:
+            hero = h
+        if h.get("favorite", False):
+            h["favorite"] = False
+
+    if not hero:
+        await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+        return
+
+    hero["favorite"] = True
+    save_user_heroes(heroes)
+
+    await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is now set as your **FAVORITE**! ❤️")
 
 
 @bot.command(name="NameHero")
@@ -1673,6 +1738,7 @@ async def on_message(message):
                 "element": element_title,
                 "feat": feat,
                 "shiny": is_shiny,
+                "favorite": False,
                 "preserved": False,
                 "created_at": created_at
             }
