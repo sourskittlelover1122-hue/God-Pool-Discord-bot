@@ -351,6 +351,35 @@ def format_event_announcement(state, forced_by=None):
     return f"🌟 **{title}** is now active!\n{boost}\n\n{details}\n\n{time_str} remain\n\n{footer}"
 
 
+def format_event_ended_message(state):
+    """Create the announcement text for an ended event."""
+    title = state.get("name", "The previous event")
+    return f"✅ **{title}** has ended. A new event is now active."
+
+
+async def mark_previous_event_ended(state):
+    """Edit previous event announcement messages to indicate the event has ended."""
+    if not state:
+        return
+    ended_message = format_event_ended_message(state)
+    for entry in state.get("announcement_messages", []):
+        guild = bot.get_guild(entry["guild_id"])
+        if not guild:
+            continue
+        channel = guild.get_channel(entry["channel_id"])
+        if not channel:
+            continue
+        try:
+            msg = await channel.fetch_message(entry["message_id"])
+            await msg.edit(content=ended_message)
+        except discord.NotFound:
+            continue
+        except discord.Forbidden:
+            continue
+        except Exception as e:
+            print(f"Failed to mark previous event ended for guild {guild.name}: {e}")
+
+
 def get_announcement_channel(guild):
     """Find a channel in the guild where the bot can send announcements."""
     # First, try to find a channel named "godpool-events"
@@ -1333,6 +1362,8 @@ async def event_scheduler():
     state = load_event_state()
     now = datetime.datetime.utcnow()
     if not state or now >= datetime.datetime.fromisoformat(state.get("next_announcement_at", now.isoformat())):
+        if state:
+            await mark_previous_event_ended(state)
         previous_name = state.get("name") if state else None
         new_state = choose_and_activate_event(exclude_name=previous_name)
         announcement = format_event_announcement(new_state)
@@ -1366,8 +1397,6 @@ Overall rarity ranks: {rarity_rank_lines}
 
 Every 10th roll is Lucky. 5% chance for Shiny.
 
-Commands:
-`!HerosGodPool`, `!Dishero <id>` (Deletes a hero), `!DeleteAllHerosGodPool`, `!PreserveHero <id>` (Prevents a hero from being deleted by `!DeleteAllHerosGodPool`), `!FavHero <id>`, `!ViewHero <id>`, `!HeroCheckIn`
 """
     await ctx.send(msg)
 
@@ -1623,6 +1652,8 @@ async def force_god_weather(ctx):
         return
 
     current_state = load_event_state() or {}
+    if current_state:
+        await mark_previous_event_ended(current_state)
     next_state = choose_and_activate_event(exclude_name=current_state.get("name"))
     announcement = format_event_announcement(next_state, forced_by=ctx.author.name)
     sent_messages = await send_global_announcement(announcement)
