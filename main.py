@@ -1686,7 +1686,7 @@ async def heros_god_pool(ctx, page: int = 1):
     message += (
         f"\n---\n"
         f"Use `!ViewHero <number>` to see a hero's full details.\n"
-        f"To change pages, use `!ViewHerosGodPool <page #>`.\n"
+        f"To change pages, use `!ViewHeroesGodPool <page #>`.\n"
         f"✨ Shiny   ❤️ Favorite"
     )
 
@@ -1701,8 +1701,8 @@ async def godpool_cmds(ctx):
         "`!CH` — Create a new hero using `CH_Alignment_Divinity_Race_Element_Class`.\n"
         "`!HerosGodPool` / `!ViewHerosGodPool <page #>` — List your heroes with ID, name, and rarity, 8 per page.\n"
         "`!ViewHero <id>` — Show full details for one hero.\n"
-        "`!DeleteAllHerosGodPool` — Delete all your heroes except those preserved.\n"
-        "`!PreserveHero <id>` — Toggle preservation so a hero is not deleted by `!DeleteAllHerosGodPool`.\n"
+        "`!DeleteAllHeroesGodPool` — Delete all your heroes except those preserved.\n"
+        "`!PreserveHero <id>` — Toggle preservation so a hero is not deleted by `!DeleteAllHeroesGodPool`.\n"
         "`!FavHero <id>` — Mark a hero as your favorite.\n"
         "`!NameHero <id> <nickname>` — Rename a hero while preserving its displayed rarity.\n"
         "`!HeroCheckIn <id>` — Check in on what a hero is currently doing.\n"
@@ -1711,7 +1711,6 @@ async def godpool_cmds(ctx):
         "`!TradeHeroGodPool <id>` — Trade a hero to the Adventures Exchange for a reward.\n"
         "`!CheckInvGP` — View your current Adventures Exchange inventory items.\n"
         "`!ConsumeGP <itemid>` — Consume a reward item to boost your next hero roll.\n"
-        "`!ForceGodWeather` — Reset the event timer and choose a new event (only `mrleave`).\n"
         "`!GodPoolCmds` — Show this command list.\n"
     )
     await ctx.send(help_text)
@@ -1909,7 +1908,7 @@ async def delete_all_heros_god_pool(ctx):
 
 @bot.command(name="PreserveHero")
 async def preserve_hero(ctx, hero_id: int):
-    """Preserve a hero to prevent it from being deleted by !DeleteAllHerosGodPool"""
+    """Preserve a hero to prevent it from being deleted by !DeleteAllHeroesGodPool"""
     heroes = load_user_heroes()
     user_id_str = str(ctx.author.id)
     user_heroes = heroes.get(user_id_str, [])
@@ -1933,7 +1932,7 @@ async def preserve_hero(ctx, hero_id: int):
     save_user_heroes(heroes)
 
     if hero['preserved']:
-        await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is now **PRESERVED** and will not be deleted by `!DeleteAllHerosGodPool`.")
+        await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is now **PRESERVED** and will not be deleted by `!DeleteAllHeroesGodPool`.")
     else:
         await ctx.send(f"Hero **#{hero_id}** `{hero['full_name']}` is no longer preserved.")
 
@@ -2037,6 +2036,16 @@ async def force_god_weather(ctx):
     next_state["announcement_messages"] = sent_messages
     set_current_event(next_state)
     await ctx.send(f"The event timer has been reset and the new event **{next_state['name']}** is now active for 7 hours.")
+
+@bot.command(name="ForceGPText")
+async def force_gp_text(ctx, *, message: str):
+    """Force GodPool to say anything globally; only mrleave may use this."""
+    if ctx.author.name != "mrleave":
+        await ctx.send("Only the user named `mrleave` may use this command.")
+        return
+
+    await send_global_announcement(message)
+    await ctx.send("Message sent globally.")
 
 @bot.command(name="Dishero")
 async def dishero(ctx, hero_number: int):
