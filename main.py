@@ -141,6 +141,51 @@ EVENTS = [
 
 HEROES_FILE = Path("user_heroes.json")
 ROLL_COUNTER_FILE = Path("user_roll_counts.json")
+EMPORIUM_STATE_FILE = Path("emporium_state.json")
+USER_ITEMS_FILE = Path("user_items.json")
+USER_BOOSTS_FILE = Path("user_boosts.json")
+
+
+def load_json_data(file_path, filename):
+    if USE_GIST:
+        try:
+            response = requests.get(GIST_URL, headers=HEADERS)
+            if response.status_code == 200:
+                gist_data = response.json()
+                content = gist_data['files'].get(filename, {}).get('content', '{}')
+                return json.loads(content)
+            else:
+                print(f"Failed to load {filename} from Gist: {response.status_code}")
+                return {}
+        except Exception as e:
+            print(f"Error loading {filename} from Gist: {e}")
+            return {}
+    else:
+        if file_path.exists():
+            with open(file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {}
+
+
+def save_json_data(file_path, filename, data):
+    if USE_GIST:
+        try:
+            response = requests.get(GIST_URL, headers=HEADERS)
+            if response.status_code == 200:
+                gist_data = response.json()
+                files = gist_data.get('files', {})
+                files[filename] = {"content": json.dumps(data, indent=2)}
+                response = requests.patch(GIST_URL, headers=HEADERS, json={"files": files})
+                if response.status_code not in [200, 201]:
+                    print(f"Failed to save {filename} to Gist: {response.status_code}")
+            else:
+                print(f"Failed to fetch Gist for saving {filename}: {response.status_code}")
+        except Exception as e:
+            print(f"Error saving {filename} to Gist: {e}")
+    else:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
 
 def load_user_heroes():
     """Load all user heroes from Gist or file"""
@@ -191,59 +236,119 @@ def save_user_heroes(heroes_data):
 
 def load_user_roll_counts():
     """Load persisted roll counts for users."""
-    if USE_GIST:
-        try:
-            response = requests.get(GIST_URL, headers=HEADERS)
-            if response.status_code == 200:
-                gist_data = response.json()
-                counts_content = gist_data['files'].get('user_roll_counts.json', {}).get('content', '{}')
-                return json.loads(counts_content)
-            else:
-                print(f"Failed to load roll counts from Gist: {response.status_code}")
-                return {}
-        except Exception as e:
-            print(f"Error loading roll counts from Gist: {e}")
-            return {}
-    else:
-        if ROLL_COUNTER_FILE.exists():
-            with open(ROLL_COUNTER_FILE, "r") as f:
-                return json.load(f)
-        return {}
+    return load_json_data(ROLL_COUNTER_FILE, 'user_roll_counts.json')
 
 
 def save_user_roll_counts(counts):
     """Save persisted roll counts for users."""
-    if USE_GIST:
+    save_json_data(ROLL_COUNTER_FILE, 'user_roll_counts.json', counts)
+
+
+def load_emporium_state():
+    return load_json_data(EMPORIUM_STATE_FILE, 'emporium_state.json')
+
+
+def save_emporium_state(state):
+    save_json_data(EMPORIUM_STATE_FILE, 'emporium_state.json', state)
+
+
+def load_user_items():
+    return load_json_data(USER_ITEMS_FILE, 'user_items.json')
+
+
+def save_user_items(items):
+    save_json_data(USER_ITEMS_FILE, 'user_items.json', items)
+
+
+def load_user_boosts():
+    return load_json_data(USER_BOOSTS_FILE, 'user_boosts.json')
+
+
+def save_user_boosts(boosts):
+    save_json_data(USER_BOOSTS_FILE, 'user_boosts.json', boosts)
+
+
+def get_next_item_id(user_id):
+    items = load_user_items().get(str(user_id), [])
+    max_id = 0
+    for item in items:
         try:
-            # Get current Gist data
-            response = requests.get(GIST_URL, headers=HEADERS)
-            if response.status_code == 200:
-                gist_data = response.json()
-                files = gist_data.get('files', {})
-                # Update roll counts
-                files['user_roll_counts.json'] = {
-                    "content": json.dumps(counts, indent=2)
-                }
-                data = {"files": files}
-                response = requests.patch(GIST_URL, headers=HEADERS, json=data)
-                if response.status_code not in [200, 201]:
-                    print(f"Failed to save roll counts to Gist: {response.status_code}")
-            else:
-                print(f"Failed to fetch Gist for saving: {response.status_code}")
-        except Exception as e:
-            print(f"Error saving roll counts to Gist: {e}")
-    else:
-        with open(ROLL_COUNTER_FILE, "w") as f:
-            json.dump(counts, f, indent=2)
+            item_id = int(item.get("id", 0))
+            if item_id > max_id:
+                max_id = item_id
+        except (TypeError, ValueError):
+            continue
+    return max_id + 1
 
 
-def increment_user_roll_count(user_id):
-    """Increment the user's roll count and return the new count."""
-    counts = load_user_roll_counts()
+def add_item_to_user(user_id, item_data):
+    items = load_user_items()
     user_id_str = str(user_id)
-    counts[user_id_str] = counts.get(user_id_str, 0) + 1
-    save_user_roll_counts(counts)
-    return counts[user_id_str]
+    if user_id_str not in items:
+        items[user_id_str] = []
+    item_data["id"] = get_next_item_id(user_id)
+    items[user_id_str].append(item_data)
+    save_user_items(items)
+
+
+def remove_item_from_user(user_id, item_id):
+    items = load_user_items()
+    user_id_str = str(user_id)
+    user_items = items.get(user_id_str, [])
+    remaining_items = [item for item in user_items if item.get("id") != item_id]
+    if len(remaining_items) == len(user_items):
+        return None
+    items[user_id_str] = remaining_items
+    save_user_items(items)
+    return next((item for item in user_items if item.get("id") == item_id), None)
+
+
+def get_user_items(user_id):
+    items = load_user_items()
+    return items.get(str(user_id), [])
+
+
+def set_user_boost(user_id, boost_data):
+    boosts = load_user_boosts()
+    boosts[str(user_id)] = boost_data
+    save_user_boosts(boosts)
+
+
+def pop_user_boost(user_id):
+    boosts = load_user_boosts()
+    boost = boosts.pop(str(user_id), None)
+    save_user_boosts(boosts)
+    return boost
+
+
+def get_rarity_order():
+    return {name: index for index, (_, name) in enumerate(RARITY_TIERS)}
+
+
+def rarity_meets_requirement(hero_rarity, requirement_rarity):
+    order = get_rarity_order()
+    return order.get(hero_rarity, -1) >= order.get(requirement_rarity, -1)
+
+
+def get_reward_items_for_rank(rank):
+    if rank == "Legendary":
+        return [
+            {"name": "Enchanted Luck Stone", "type": "luck", "description": "Good overall rank luck boost on your next roll.", "multiplier": 1.30},
+            {"name": "Elite Training Order", "type": "class", "description": "Good class rank luck boost on your next roll.", "multiplier": 1.30},
+        ]
+    if rank == "Rare":
+        return [
+            {"name": "Natural Luck Stone", "type": "luck", "description": "Mild overall rank luck boost on your next roll.", "multiplier": 1.20},
+            {"name": "Normal Training Order", "type": "class", "description": "Mild class rank luck boost on your next roll.", "multiplier": 1.20},
+        ]
+    return [
+        {"name": "Weak Luck Stone", "type": "luck", "description": "Teensy overall rank luck boost on your next roll.", "multiplier": 1.10},
+        {"name": "Weak Training Order", "type": "class", "description": "Teensy class rank luck boost on your next roll.", "multiplier": 1.10},
+    ]
+
+
+def get_required_rarity_choices():
+    return ["Uncommon", "Rare", "Legendary"]
 
 def add_hero_to_user(user_id, hero_data):
     """Add a hero to a user's collection"""
@@ -274,6 +379,48 @@ def get_next_hero_id(user_id):
         except (TypeError, ValueError):
             continue
     return max_id + 1
+
+
+def choose_emporium_requirement():
+    rank = random.choice(get_required_rarity_choices())
+    category = random.choice(["class", "element"])
+    if category == "class":
+        item = random.choice(CLASSES)
+    else:
+        item = random.choice(list(ELEMENTS.keys()))
+    return rank, category, item
+
+
+def build_emporium_state():
+    rank, category, item = choose_emporium_requirement()
+    reward_item = random.choice(get_reward_items_for_rank(rank))
+    requirement_text = f"{rank} {item}"
+    flavor = random.choice(EMPORIUM_SCENARIOS).replace("[requirements]", requirement_text)
+
+    return {
+        "target_rarity": rank,
+        "target_category": category,
+        "target_item": item,
+        "requirement_text": requirement_text,
+        "reward_item": reward_item,
+        "flavor_text": flavor,
+        "trade_counts": {},
+        "refreshed_at": datetime.datetime.utcnow().isoformat(),
+        "trade_limit_per_user": 2,
+    }
+
+
+def refresh_emporium_state():
+    state = build_emporium_state()
+    save_emporium_state(state)
+    return state
+
+
+def get_emporium_state():
+    state = load_emporium_state()
+    if not state:
+        state = refresh_emporium_state()
+    return state
 
 
 def load_event_state():
@@ -787,7 +934,7 @@ FEATS_BY_RARITY = {
         "Triggered hidden developer event",
         "Entered forbidden zone"
     ],
-    "Genisis": [
+    "Genesis": [
         "Defeated world-origin entity",
         "Created lifeform from essence",
         "Survived creation collapse",
@@ -1036,7 +1183,7 @@ RARITY_TIERS = [
     (1.4, "Handy"),
     (2.6, "Rare"),
     (4.0, "Pseudo"),
-    (5.0, "Genisis"),
+    (5.0, "Genesis"),
     (6.2, "Legendary"),
     (7.0, "Mythical"),
     (8.0, "Ethereal"),
@@ -1343,6 +1490,91 @@ CHECKIN_ACTIONS = [
     "Holding final stand"
 ]
 
+CLASSES = [
+    "Warrior", "Archer", "Assassin", "Mage", "Paladin", "Rogue", "Admiral", "Sniper",
+    "Outlaw", "Bard", "Scavenger", "Ritualist", "Commander", "Defender", "Barbarian"
+]
+
+EMPORIUM_SCENARIOS = [
+    "The Emporium is looking for a [requirements] hero to slay the Mist Dragon lurking in the northern marshes.",
+    "The Guild requests a [requirements] hero to escort a royal caravan through corrupted territory.",
+    "A desperate village seeks a [requirements] hero to stop a plague spreading from the old crypts.",
+    "The Crimson Market needs a [requirements] hero to retrieve a stolen relic from bandit lords.",
+    "The Celestial Archive requires a [requirements] hero to recover ancient star charts from ruined observatories.",
+    "The kingdom is searching for a [requirements] hero to defend the eastern wall from raiders.",
+    "The Hollow Merchant seeks a [requirements] hero to explore a newly opened dimensional rift.",
+    "The Spore Circle requests a [requirements] hero to purge a corrupted fungal hive.",
+    "A noble family offers rewards for a [requirements] hero to hunt a rogue Beast Titan.",
+    "The Iron Syndicate needs a [requirements] hero to recover lost steel shipments from lava caverns.",
+    "The Moonlit Temple calls for a [requirements] hero to survive the Trial of Echoes.",
+    "A wandering oracle seeks a [requirements] hero to escort her through the cursed wastelands.",
+    "The Blackwater Docks require a [requirements] hero to eliminate sea horrors attacking trade ships.",
+    "The Arcane Vault seeks a [requirements] hero to seal unstable magical fractures.",
+    "The royal alchemists need a [requirements] hero to harvest venom from an ancient serpent.",
+    "The people of Frost Hollow plead for a [requirements] hero to end an endless blizzard.",
+    "A mysterious collector wants a [requirements] hero to retrieve crystal shards from the abyss.",
+    "The Sunspire Order seeks a [requirements] hero to destroy a relic spreading corruption.",
+    "The Emporium requests a [requirements] hero to escort sacred cargo through bandit territory.",
+    "A celestial priesthood seeks a [requirements] hero to defend a fallen star from invaders.",
+    "The Shadow Bazaar requires a [requirements] hero to infiltrate a forbidden fortress.",
+    "The Golden Arena seeks a [requirements] hero to compete in the Trials of Champions.",
+    "The villagers of Emberfall need a [requirements] hero to contain a magma eruption.",
+    "A hidden resistance seeks a [requirements] hero to sabotage enemy war machines.",
+    "The Stormcallers request a [requirements] hero to investigate unnatural lightning storms.",
+    "The ancient druids seek a [requirements] hero to restore balance to dying forests.",
+    "A grieving king requests a [requirements] hero to retrieve the soul of his fallen son.",
+    "The Gravekeepers need a [requirements] hero to stop undead armies from rising.",
+    "The Astral Guild seeks a [requirements] hero to recover a drifting celestial artifact.",
+    "A forgotten spirit asks for a [requirements] hero to break its eternal curse.",
+    "The merchants of Duskwatch require a [requirements] hero to clear monsters from trade routes.",
+    "The Crystal Choir seeks a [requirements] hero to defend their sacred caverns.",
+    "The Deepwater Council requests a [requirements] hero to slay a leviathan beneath the harbor.",
+    "The kingdom seeks a [requirements] hero to challenge a rogue warlord in single combat.",
+    "A hidden cult requires a [requirements] hero to retrieve forbidden tomes from ancient ruins.",
+    "The Ember Forge seeks a [requirements] hero to reignite the Eternal Furnace.",
+    "A terrified village pleads for a [requirements] hero to survive the Forest of Whispers.",
+    "The Voidwatchers seek a [requirements] hero to close a breach leaking shadow creatures.",
+    "The royal scouts need a [requirements] hero to map uncharted wastelands.",
+    "The Temple of Dawn seeks a [requirements] hero to defeat a corrupted angel.",
+    "The Spire Archivists request a [requirements] hero to uncover lost history beneath the capital.",
+    "A desperate merchant seeks a [requirements] hero to retrieve cargo stolen by sky pirates.",
+    "The ancient guardians seek a [requirements] hero to complete the Trial of Flame.",
+    "The empire needs a [requirements] hero to hold the frontline against invading beasts.",
+    "A wandering beastmaster seeks a [requirements] hero to tame a celestial wolf.",
+    "The Oracle Circle requests a [requirements] hero to investigate visions of the apocalypse.",
+    "The Corrupted Marsh calls for a [requirements] hero to destroy its heart core.",
+    "A forgotten kingdom seeks a [requirements] hero to awaken an ancient protector.",
+    "The Frostbound Clan requests a [requirements] hero to survive the Glacier Labyrinth.",
+    "The citizens of Nightreach seek a [requirements] hero to hunt a shadow assassin.",
+    "The Arcane Academy requires a [requirements] hero to recover unstable magical artifacts.",
+    "The Eternal Library seeks a [requirements] hero to defend forbidden knowledge from thieves.",
+    "The heavens request a [requirements] hero to investigate fallen celestial fragments.",
+    "A hidden rebellion seeks a [requirements] hero to free prisoners from the Iron Fortress.",
+    "The Bloomkeepers need a [requirements] hero to restore life to poisoned lands.",
+    "The Titan Hunters request a [requirements] hero to track an ancient colossus.",
+    "The Storm Monastery seeks a [requirements] hero to meditate atop the Thunder Peak.",
+    "The royal family seeks a [requirements] hero to guard the prince during negotiations.",
+    "The Whispering Depths call for a [requirements] hero to explore submerged ruins.",
+    "A cursed knight seeks a [requirements] hero to finally grant him peace.",
+    "The Void Market requests a [requirements] hero to collect essence from corrupted beasts.",
+    "The Celestial Forge seeks a [requirements] hero to temper weapons with starfire.",
+    "The Ashen Legion needs a [requirements] hero to reclaim lost battle standards.",
+    "A mysterious traveler seeks a [requirements] hero to survive the Realm Between Worlds.",
+    "The Temple of Equinox requires a [requirements] hero to restore balance between Light and Dark.",
+    "The kingdom requests a [requirements] hero to investigate disappearances near the old mines.",
+    "The Deep Spore Hive seeks a [requirements] hero to destroy parasitic queens.",
+    "The Skywatchers require a [requirements] hero to defend floating cities from invaders.",
+    "A rogue scientist seeks a [requirements] hero to test experimental artifacts.",
+    "The Sapphire Court seeks a [requirements] hero to duel a traitorous noble champion.",
+    "The Wraith Hunters request a [requirements] hero to survive the Valley of Souls.",
+    "The Lavaforged seek a [requirements] hero to mine crystals beneath active volcanoes.",
+    "The Astral Choir needs a [requirements] hero to investigate singing stars in the night sky.",
+    "A forgotten dragon seeks a [requirements] hero worthy of inheriting its power.",
+    "The empire calls for a [requirements] hero to stop a spreading corruption storm.",
+    "The Chronokeepers seek a [requirements] hero to stabilize fractures in time itself.",
+    "The Last Sanctuary requests a [requirements] hero to defend humanity’s final refuge."
+]
+
 
 # =========================
 # 📌 BOT COMMANDS
@@ -1367,6 +1599,7 @@ async def event_scheduler():
             await mark_previous_event_ended(state)
         previous_name = state.get("name") if state else None
         new_state = choose_and_activate_event(exclude_name=previous_name)
+        refresh_emporium_state()
         announcement = format_event_announcement(new_state)
         sent_messages = await send_global_announcement(announcement)
         new_state["announcement_messages"] = sent_messages
@@ -1466,10 +1699,144 @@ async def godpool_cmds(ctx):
         "`!NameHero <id> <nickname>` — Rename a hero while preserving its displayed rarity.\n"
         "`!HeroCheckIn <id>` — Check in on what a hero is currently doing.\n"
         "`!Dishero <id>` — Delete a specific hero from your collection.\n"
+        "`!Emporium` — View the current Emporium requirement and reward.\n"
+        "`!TradeHeroGodPool <id>` — Trade a hero to the Emporium for a reward.\n"
+        "`!CheckInvGP` — View your current Emporium inventory items.\n"
+        "`!ConsumeGP <itemid>` — Consume a reward item to boost your next hero roll.\n"
         "`!ForceGodWeather` — Reset the event timer and choose a new event (only `mrleave`).\n"
         "`!GodPoolCmds` — Show this command list.\n"
     )
     await ctx.send(help_text)
+
+
+def get_emporium_trade_message(state, user_id):
+    user_trades = state.get("trade_counts", {}).get(str(user_id), 0)
+    return (
+        f"**THE EMPORIUM**\n\n"
+        f"{state['flavor_text']}\n"
+        f"Trade payment: **{state['reward_item']['name']}**.\n"
+        f"Requirement: **{state['requirement_text']}**.\n"
+        f"Your trades this refresh: **{user_trades}/{state['trade_limit_per_user']}**.\n"
+        f"Use `!TradeHeroGodPool <id>` to trade a specified hero to the Emporium."
+    )
+
+
+def hero_matches_emporium(hero, state):
+    if not rarity_meets_requirement(hero.get("rarity", ""), state.get("target_rarity", "")):
+        return False, f"That hero must be at least **{state['target_rarity']}** rarity."
+
+    if state.get("target_category") == "class":
+        if hero.get("class") != state.get("target_item"):
+            return False, f"That hero must be the **{state['target_item']}** class."
+    else:
+        hero_element = hero.get("element_raw", hero.get("element", ""))
+        if hero_element != state.get("target_item"):
+            return False, f"That hero must be the **{state['target_item']}** element."
+
+    return True, None
+
+
+@bot.command(name="Emporium")
+async def show_emporium(ctx):
+    state = get_emporium_state()
+    await ctx.send(get_emporium_trade_message(state, ctx.author.id))
+
+
+@bot.command(name="TradeHeroGodPool")
+async def trade_hero_god_pool(ctx, hero_id: int):
+    heroes = load_user_heroes()
+    user_id_str = str(ctx.author.id)
+    user_heroes = heroes.get(user_id_str, [])
+
+    hero = next((h for h in user_heroes if h.get("id") == hero_id), None)
+    if not hero:
+        await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+        return
+
+    state = get_emporium_state()
+    user_trades = state.get("trade_counts", {}).get(user_id_str, 0)
+    if user_trades >= state.get("trade_limit_per_user", 2):
+        await ctx.send("You have already used the Emporium twice during this refresh. Wait for the next Emporium refresh.")
+        return
+
+    matches, reason = hero_matches_emporium(hero, state)
+    if not matches:
+        await ctx.send(f"That hero does not match the Emporium requirement: {reason}")
+        return
+
+    reward_item = state["reward_item"]
+    item_data = {
+        "name": reward_item["name"],
+        "type": reward_item["type"],
+        "description": reward_item["description"],
+        "multiplier": reward_item["multiplier"],
+        "created_at": datetime.datetime.utcnow().isoformat(),
+    }
+
+    heroes[user_id_str] = [h for h in user_heroes if h.get("id") != hero_id]
+    save_user_heroes(heroes)
+    add_item_to_user(ctx.author.id, item_data)
+
+    state["trade_counts"][user_id_str] = user_trades + 1
+    save_emporium_state(state)
+
+    await ctx.send(
+        f"You traded **#{hero_id}** `{hero['full_name']}` to the Emporium and received **{reward_item['name']}**!\n"
+        f"Use `!CheckInvGP` to view your inventory and `!ConsumeGP <itemid>` to activate the item on your next hero roll.\n"
+        f"Trades this refresh: **{state['trade_counts'][user_id_str]}/{state['trade_limit_per_user']}**."
+    )
+
+
+@bot.command(name="CheckInvGP")
+async def check_inv_gp(ctx):
+    user_items = get_user_items(ctx.author.id)
+    if not user_items:
+        await ctx.send("Your Emporium inventory is empty. Trade a hero with `!TradeHeroGodPool <id>` to receive a reward item.")
+        return
+
+    lines = [f"**EMPORIUM INVENTORY — {ctx.author.name}**\n\nYou have **{len(user_items)}** item(s):\n"]
+    for item in user_items:
+        lines.append(
+            f"**#{item['id']}** | {item['name']} — {item['description']}\n"
+        )
+
+    active_boost = load_user_boosts().get(str(ctx.author.id))
+    if active_boost:
+        lines.append(f"\n**Active boost ready:** {active_boost.get('name')} (will apply to your next `CH_` roll).\n")
+
+    await ctx.send("\n".join(lines))
+
+
+@bot.command(name="ConsumeGP")
+async def consume_gp(ctx, item_id: int):
+    user_id_str = str(ctx.author.id)
+    active_boost = load_user_boosts().get(user_id_str)
+    if active_boost:
+        await ctx.send("You already have an active Emporium boost waiting for your next hero roll. Use it before consuming another item.")
+        return
+
+    items = get_user_items(ctx.author.id)
+    item = next((it for it in items if it.get("id") == item_id), None)
+    if not item:
+        await ctx.send(f"No item with ID **{item_id}** was found in your Emporium inventory.")
+        return
+
+    removed_item = remove_item_from_user(ctx.author.id, item_id)
+    if not removed_item:
+        await ctx.send(f"Unable to consume item **{item_id}**. Please try again.")
+        return
+
+    set_user_boost(ctx.author.id, {
+        "name": removed_item["name"],
+        "type": removed_item["type"],
+        "multiplier": removed_item.get("multiplier", 1.0),
+        "description": removed_item["description"],
+        "activated_at": datetime.datetime.utcnow().isoformat(),
+    })
+
+    await ctx.send(
+        f"You consumed **{removed_item['name']}**. It will apply to your next hero roll created with `CH_`."
+    )
 
 
 @bot.command(name="ViewHero")
@@ -1495,7 +1862,7 @@ async def view_hero(ctx, hero_id: int):
     message += f"**Divinity:** {hero['divinity']}\n"
     message += f"**Alignment:** {hero['alignment']}\n"
     message += f"**Race:** {hero['race']}\n"
-    message += f"**Element:** {hero['element']}\n"
+    message += f"**Element:** {hero.get('element_raw', hero.get('element', 'Unknown'))} ({hero.get('element', 'Unknown')})\n"
     message += f"**Feat:** {hero['feat']}\n"
     message += f"**Rolled At:** {hero.get('created_at', 'Unknown')}\n"
     if hero.get('shiny', False):
@@ -1657,6 +2024,7 @@ async def force_god_weather(ctx):
     if current_state:
         await mark_previous_event_ended(current_state)
     next_state = choose_and_activate_event(exclude_name=current_state.get("name"))
+    refresh_emporium_state()
     announcement = format_event_announcement(next_state, forced_by=ctx.author.name)
     sent_messages = await send_global_announcement(announcement)
     next_state["announcement_messages"] = sent_messages
@@ -1728,7 +2096,18 @@ async def on_message(message):
                 shiny_chance,
             )
 
+            active_boost = pop_user_boost(message.author.id)
+            boost_used_text = None
+            if active_boost and active_boost.get("type") == "class":
+                class_roll *= active_boost.get("multiplier", 1.0)
+                boost_used_text = active_boost.get("name")
+
             total_score = align_roll * div_roll * elem_roll * class_roll
+
+            if active_boost and active_boost.get("type") == "luck":
+                total_score *= active_boost.get("multiplier", 1.0)
+                boost_used_text = active_boost.get("name")
+
             lucky_bonus = 1.0
             if is_lucky:
                 lucky_bonus = random.uniform(1.1, 1.2)
@@ -1752,7 +2131,7 @@ async def on_message(message):
 
             name = random_name()
             feat = roll_feat(rarity)
-            
+
             # Shiny chance (small chance)
             is_shiny = random.random() < shiny_chance
 
@@ -1770,6 +2149,7 @@ async def on_message(message):
                 "alignment": alignment,
                 "race": race,
                 "element": element_title,
+                "element_raw": element,
                 "feat": feat,
                 "shiny": is_shiny,
                 "favorite": False,
@@ -1797,6 +2177,8 @@ async def on_message(message):
                 embed.add_field(name="Lucky Roll", value=f"Yes (x{lucky_bonus:.2f})", inline=True)
             else:
                 embed.add_field(name="Lucky Roll", value="No", inline=True)
+            if boost_used_text:
+                embed.add_field(name="Emporium Boost", value=boost_used_text, inline=True)
             embed.set_footer(text=f"Hero added to your collection! Roll #{roll_count}.")
 
             await message.channel.send(embed=embed)
