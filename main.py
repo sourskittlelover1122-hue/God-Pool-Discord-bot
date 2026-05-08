@@ -244,6 +244,17 @@ def save_user_roll_counts(counts):
     save_json_data(ROLL_COUNTER_FILE, 'user_roll_counts.json', counts)
 
 
+def increment_user_roll_count(user_id):
+    """Increment the roll count for a user and return the new count."""
+    counts = load_user_roll_counts()
+    user_id_str = str(user_id)
+    current_count = counts.get(user_id_str, 0)
+    new_count = current_count + 1
+    counts[user_id_str] = new_count
+    save_user_roll_counts(counts)
+    return new_count
+
+
 def load_emporium_state():
     return load_json_data(EMPORIUM_STATE_FILE, 'emporium_state.json')
 
@@ -1634,19 +1645,34 @@ Every 10th roll is Lucky. 5% chance for Shiny.
 """
     await ctx.send(msg)
 
-@bot.command(name="HerosGodPool")
-async def heros_god_pool(ctx):
-    """Display all heroes in a user's collection (name, rarity, and ID only)"""
+@bot.command(name="HerosGodPool", aliases=["ViewHerosGodPool"])
+async def heros_god_pool(ctx, page: int = 1):
+    """Display paginated heroes in a user's collection (name, rarity, and ID only)"""
     user_heroes = get_user_heroes(ctx.author.id)
     
     if not user_heroes:
         await ctx.send(f"**HERO COLLECTION — {ctx.author.name}**\n\nYou currently have **0 heroes** in your collection. Create one with `CH_Alignment_Divinity_Race_Element_Class`!")
         return
     
-    # Build the message with just name, rarity, and ID
-    message = f"**HERO COLLECTION — {ctx.author.name}**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
+    per_page = 8
+    total_heroes = len(user_heroes)
+    max_page = max(1, (total_heroes + per_page - 1) // per_page)
+    if page < 1:
+        page = 1
+    if page > max_page:
+        page = max_page
+
+    start = (page - 1) * per_page
+    end = start + per_page
+    current_page_heroes = user_heroes[start:end]
+
+    message = (
+        f"**HERO COLLECTION — {ctx.author.name}**\n\n"
+        f"You currently have **{total_heroes}** heroes in your collection.\n"
+        f"Showing page **{page}/{max_page}** (8 heroes per page):\n\n---\n\n"
+    )
     
-    for hero in user_heroes:
+    for hero in current_page_heroes:
         icons = ""
         if hero.get('shiny', False):
             icons += " ✨"
@@ -1654,35 +1680,14 @@ async def heros_god_pool(ctx):
             icons += " ❤️"
         message += f"**#{hero['id']}** | {hero['full_name']}{icons} | ⭐ {hero['rarity']}\n"
     
-    message += f"\n---\n*Use `!ViewHero <number>` to see a hero's full details.*\n✨ Shiny   ❤️ Favorite"
-    
-    # Discord has a 2000 character limit per message, so split if needed
-    if len(message) > 2000:
-        # Split into multiple messages
-        chunks = []
-        current = f"**HERO COLLECTION — {ctx.author.name}**\n\nYou currently have **{len(user_heroes)}** heroes in your collection:\n\n---\n\n"
-        
-        for hero in user_heroes:
-            icons = ""
-            if hero.get('shiny', False):
-                icons += " ✨"
-            if hero.get('favorite', False):
-                icons += " ❤️"
-            hero_text = f"**#{hero['id']}** | {hero['full_name']}{icons} | ⭐ {hero['rarity']}\n"
-            
-            if len(current) + len(hero_text) > 1900:  # Leave room for footer
-                chunks.append(current)
-                current = hero_text
-            else:
-                current += hero_text
-        
-        if current:
-            chunks.append(current + f"\n---\n*Use `!ViewHero <number>` to see a hero's full details.*\n✨ Shiny   ❤️ Favorite")
-        
-        for chunk in chunks:
-            await ctx.send(chunk)
-    else:
-        await ctx.send(message)
+    message += (
+        f"\n---\n"
+        f"Use `!ViewHero <number>` to see a hero's full details.\n"
+        f"To change pages, use `!ViewHerosGodPool <page #>`.\n"
+        f"✨ Shiny   ❤️ Favorite"
+    )
+
+    await ctx.send(message)
 
 
 @bot.command(name="GodPoolCmds")
@@ -1691,7 +1696,7 @@ async def godpool_cmds(ctx):
     help_text = (
         "**GodPool Command List**\n\n"
         "`!CH` — Create a new hero using `CH_Alignment_Divinity_Race_Element_Class`.\n"
-        "`!HerosGodPool` — List your heroes with ID, name, and rarity.\n"
+        "`!HerosGodPool` / `!ViewHerosGodPool <page #>` — List your heroes with ID, name, and rarity, 8 per page.\n"
         "`!ViewHero <id>` — Show full details for one hero.\n"
         "`!DeleteAllHerosGodPool` — Delete all your heroes except those preserved.\n"
         "`!PreserveHero <id>` — Toggle preservation so a hero is not deleted by `!DeleteAllHerosGodPool`.\n"
@@ -1710,13 +1715,12 @@ async def godpool_cmds(ctx):
 
 
 def get_emporium_trade_message(state, user_id):
-    user_trades = state.get("trade_counts", {}).get(str(user_id), 0)
     return (
         f"**THE EMPORIUM**\n\n"
         f"{state['flavor_text']}\n"
         f"Trade payment: **{state['reward_item']['name']}**.\n"
         f"Requirement: **{state['requirement_text']}**.\n"
-        f"Your trades this refresh: **{user_trades}/{state['trade_limit_per_user']}**.\n"
+        f"This Emporium refresh allows **{state['trade_limit_per_user']}** trades per user.\n"
         f"Use `!TradeHeroGodPool <id>` to trade a specified hero to the Emporium."
     )
 
