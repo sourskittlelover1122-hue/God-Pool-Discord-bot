@@ -506,13 +506,16 @@ def format_event_announcement(state, forced_by=None):
     footer = "A new event has begun! It lasts 7 hours."
     if forced_by:
         footer = f"Forced into motion by {forced_by}. New event lasts 7 hours."
-    return f"🌟 **{title}** is now active!\n{boost}\n\n{details}\n\n{time_str} remain\n\n{footer}"
+    return (
+        f"🌟 **{title}** is now active!\n{boost}\n\n{details}\n\n"
+        f"The Adventures Exchange has been refreshed.\n\n"
+        f"{time_str} remain\n\n{footer}"
+    )
 
 
 def format_event_ended_message(state):
     """Create the announcement text for an ended event."""
-    title = state.get("name", "The previous event")
-    return f"✅ **{title}** has ended. A new event is now active."
+    return "This Event has ended, a new one has started!"
 
 
 async def mark_previous_event_ended(state):
@@ -1507,7 +1510,7 @@ CLASSES = [
 ]
 
 EMPORIUM_SCENARIOS = [
-    "The Emporium is looking for a [requirements] hero to slay the Mist Dragon lurking in the northern marshes.",
+    "The Adventures Exchange is looking for a [requirements] hero to slay the Mist Dragon lurking in the northern marshes.",
     "The Guild requests a [requirements] hero to escort a royal caravan through corrupted territory.",
     "A desperate village seeks a [requirements] hero to stop a plague spreading from the old crypts.",
     "The Crimson Market needs a [requirements] hero to retrieve a stolen relic from bandit lords.",
@@ -1525,7 +1528,7 @@ EMPORIUM_SCENARIOS = [
     "The people of Frost Hollow plead for a [requirements] hero to end an endless blizzard.",
     "A mysterious collector wants a [requirements] hero to retrieve crystal shards from the abyss.",
     "The Sunspire Order seeks a [requirements] hero to destroy a relic spreading corruption.",
-    "The Emporium requests a [requirements] hero to escort sacred cargo through bandit territory.",
+    "The Adventures Exchange requests a [requirements] hero to escort sacred cargo through bandit territory.",
     "A celestial priesthood seeks a [requirements] hero to defend a fallen star from invaders.",
     "The Shadow Bazaar requires a [requirements] hero to infiltrate a forbidden fortress.",
     "The Golden Arena seeks a [requirements] hero to compete in the Trials of Champions.",
@@ -1704,9 +1707,9 @@ async def godpool_cmds(ctx):
         "`!NameHero <id> <nickname>` — Rename a hero while preserving its displayed rarity.\n"
         "`!HeroCheckIn <id>` — Check in on what a hero is currently doing.\n"
         "`!Dishero <id>` — Delete a specific hero from your collection.\n"
-        "`!Emporium` — View the current Emporium requirement and reward.\n"
-        "`!TradeHeroGodPool <id>` — Trade a hero to the Emporium for a reward.\n"
-        "`!CheckInvGP` — View your current Emporium inventory items.\n"
+        "`!AE` / `!Emporium` — View the current Adventures Exchange requirement and reward.\n"
+        "`!TradeHeroGodPool <id>` — Trade a hero to the Adventures Exchange for a reward.\n"
+        "`!CheckInvGP` — View your current Adventures Exchange inventory items.\n"
         "`!ConsumeGP <itemid>` — Consume a reward item to boost your next hero roll.\n"
         "`!ForceGodWeather` — Reset the event timer and choose a new event (only `mrleave`).\n"
         "`!GodPoolCmds` — Show this command list.\n"
@@ -1716,12 +1719,12 @@ async def godpool_cmds(ctx):
 
 def get_emporium_trade_message(state, user_id):
     return (
-        f"**THE EMPORIUM**\n\n"
+        f"**THE ADVENTURES EXCHANGE**\n\n"
         f"{state['flavor_text']}\n"
         f"Trade payment: **{state['reward_item']['name']}**.\n"
         f"Requirement: **{state['requirement_text']}**.\n"
-        f"This Emporium refresh allows **{state['trade_limit_per_user']}** trades per user.\n"
-        f"Use `!TradeHeroGodPool <id>` to trade a specified hero to the Emporium."
+        f"This Adventures Exchange refresh allows **{state['trade_limit_per_user']}** trades per user.\n"
+        f"Use `!TradeHeroGodPool <id>` to trade a specified hero to the Adventures Exchange."
     )
 
 
@@ -1740,7 +1743,7 @@ def hero_matches_emporium(hero, state):
     return True, None
 
 
-@bot.command(name="Emporium")
+@bot.command(name="AE", aliases=["Emporium"])
 async def show_emporium(ctx):
     state = get_emporium_state()
     await ctx.send(get_emporium_trade_message(state, ctx.author.id))
@@ -1760,12 +1763,12 @@ async def trade_hero_god_pool(ctx, hero_id: int):
     state = get_emporium_state()
     user_trades = state.get("trade_counts", {}).get(user_id_str, 0)
     if user_trades >= state.get("trade_limit_per_user", 2):
-        await ctx.send("You have already used the Emporium twice during this refresh. Wait for the next Emporium refresh.")
+        await ctx.send("You have already used the Adventures Exchange twice during this refresh. Wait for the next Adventures Exchange refresh.")
         return
 
     matches, reason = hero_matches_emporium(hero, state)
     if not matches:
-        await ctx.send(f"That hero does not match the Emporium requirement: {reason}")
+        await ctx.send(f"That hero does not match the Adventures Exchange requirement: {reason}")
         return
 
     reward_item = state["reward_item"]
@@ -1785,7 +1788,7 @@ async def trade_hero_god_pool(ctx, hero_id: int):
     save_emporium_state(state)
 
     await ctx.send(
-        f"You traded **#{hero_id}** `{hero['full_name']}` to the Emporium and received **{reward_item['name']}**!\n"
+        f"You traded **#{hero_id}** `{hero['full_name']}` to the Adventures Exchange and received **{reward_item['name']}**!\n"
         f"Use `!CheckInvGP` to view your inventory and `!ConsumeGP <itemid>` to activate the item on your next hero roll.\n"
         f"Trades this refresh: **{state['trade_counts'][user_id_str]}/{state['trade_limit_per_user']}**."
     )
@@ -1795,10 +1798,10 @@ async def trade_hero_god_pool(ctx, hero_id: int):
 async def check_inv_gp(ctx):
     user_items = get_user_items(ctx.author.id)
     if not user_items:
-        await ctx.send("Your Emporium inventory is empty. Trade a hero with `!TradeHeroGodPool <id>` to receive a reward item.")
+        await ctx.send("Your Adventures Exchange inventory is empty. Trade a hero with `!TradeHeroGodPool <id>` to receive a reward item.")
         return
 
-    lines = [f"**EMPORIUM INVENTORY — {ctx.author.name}**\n\nYou have **{len(user_items)}** item(s):\n"]
+    lines = [f"**ADVENTURES EXCHANGE INVENTORY — {ctx.author.name}**\n\nYou have **{len(user_items)}** item(s):\n"]
     for item in user_items:
         lines.append(
             f"**#{item['id']}** | {item['name']} — {item['description']}\n"
@@ -1816,13 +1819,13 @@ async def consume_gp(ctx, item_id: int):
     user_id_str = str(ctx.author.id)
     active_boost = load_user_boosts().get(user_id_str)
     if active_boost:
-        await ctx.send("You already have an active Emporium boost waiting for your next hero roll. Use it before consuming another item.")
+        await ctx.send("You already have an active Adventures Exchange boost waiting for your next hero roll. Use it before consuming another item.")
         return
 
     items = get_user_items(ctx.author.id)
     item = next((it for it in items if it.get("id") == item_id), None)
     if not item:
-        await ctx.send(f"No item with ID **{item_id}** was found in your Emporium inventory.")
+        await ctx.send(f"No item with ID **{item_id}** was found in your Adventures Exchange inventory.")
         return
 
     removed_item = remove_item_from_user(ctx.author.id, item_id)
@@ -2182,7 +2185,7 @@ async def on_message(message):
             else:
                 embed.add_field(name="Lucky Roll", value="No", inline=True)
             if boost_used_text:
-                embed.add_field(name="Emporium Boost", value=boost_used_text, inline=True)
+                embed.add_field(name="Adventures Exchange Boost", value=boost_used_text, inline=True)
             embed.set_footer(text=f"Hero added to your collection! Roll #{roll_count}.")
 
             await message.channel.send(embed=embed)
