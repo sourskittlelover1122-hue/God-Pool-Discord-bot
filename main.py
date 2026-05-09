@@ -2083,11 +2083,37 @@ async def on_message(message):
         try:
             parts = message.content.split("_")
 
+            if len(parts) != 6:
+                await message.channel.send("Invalid format. Use: CH_Alignment_Divinity_Race_Element_Class")
+                return
+
             alignment = parts[1]
             divinity = parts[2]
             race = parts[3]
             element = parts[4]
             clazz = parts[5]
+
+            VALID_ALIGNMENTS = {"Valiant", "Good", "Neutral", "Mischievous", "Evil"}
+            VALID_DIVINITIES = {"Divine", "Neutral", "Hellish"}
+            VALID_RACES = {"Human", "Construct", "Elven", "Goblin", "Beast", "Ogre", "Deep-Crawler", "Celestial", "Angel", "Demon", "Dwarf", "Elemental", "Undead", "Magma-Crawler"}
+            VALID_ELEMENTS = set(ELEMENTS.keys())
+            VALID_CLASSES = {"Warrior", "Archer", "Assassin", "Mage", "Paladin", "Rogue", "Admiral", "Sniper", "Outlaw", "Bard", "Scavenger", "Ritualist", "Commander", "Defender", "Barbarian"}
+
+            if alignment not in VALID_ALIGNMENTS:
+                await message.channel.send(f"Invalid alignment '{alignment}'. Valid: {', '.join(VALID_ALIGNMENTS)}")
+                return
+            if divinity not in VALID_DIVINITIES:
+                await message.channel.send(f"Invalid divinity '{divinity}'. Valid: {', '.join(VALID_DIVINITIES)}")
+                return
+            if race not in VALID_RACES:
+                await message.channel.send(f"Invalid race '{race}'. Valid: {', '.join(VALID_RACES)}")
+                return
+            if element not in VALID_ELEMENTS:
+                await message.channel.send(f"Invalid element '{element}'. Valid: {', '.join(VALID_ELEMENTS)}")
+                return
+            if clazz not in VALID_CLASSES:
+                await message.channel.send(f"Invalid class '{clazz}'. Valid: {', '.join(VALID_CLASSES)}")
+                return
 
             roll_count = increment_user_roll_count(message.author.id)
             is_lucky = roll_count % 10 == 0
