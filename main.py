@@ -1648,7 +1648,7 @@ Every 10th roll is Lucky. 5% chance for Shiny.
 """
     await ctx.send(msg)
 
-@bot.command(name="HerosGodPool", aliases=["ViewHerosGodPool"])
+@bot.command(name="HerosGodPool", aliases=["ViewHerosGodPool", "ViewHeroesGodPool"])
 async def heros_god_pool(ctx, page: int = 1):
     """Display paginated heroes in a user's collection (name, rarity, and ID only)"""
     user_heroes = get_user_heroes(ctx.author.id)
@@ -1686,7 +1686,7 @@ async def heros_god_pool(ctx, page: int = 1):
     message += (
         f"\n---\n"
         f"Use `!ViewHero <number>` to see a hero's full details.\n"
-        f"To change pages, use `!ViewHeroesGodPool <page #>`.\n"
+        f"To change pages, use `!ViewHerosGodPool <page #>` or `!ViewHeroesGodPool <page #>`.\n"
         f"✨ Shiny   ❤️ Favorite"
     )
 
@@ -1699,7 +1699,7 @@ async def godpool_cmds(ctx):
     help_text = (
         "**GodPool Command List**\n\n"
         "`!CH` — Create a new hero using `CH_Alignment_Divinity_Race_Element_Class`.\n"
-        "`!HerosGodPool` / `!ViewHerosGodPool <page #>` — List your heroes with ID, name, and rarity, 8 per page.\n"
+        "`!HerosGodPool` / `!ViewHerosGodPool <page #>` / `!ViewHeroesGodPool <page #>` — List your heroes with ID, name, and rarity, 8 per page.\n"
         "`!ViewHero <id>` — Show full details for one hero.\n"
         "`!DeleteAllHeroesGodPool` — Delete all your heroes except those preserved.\n"
         "`!PreserveHero <id>` — Toggle preservation so a hero is not deleted by `!DeleteAllHeroesGodPool`.\n"
