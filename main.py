@@ -1648,7 +1648,7 @@ Every 10th roll is Lucky. 5% chance for Shiny.
 """
     await ctx.send(msg)
 
-@bot.command(name="HerosGodPool", aliases=["ViewHerosGodPool", "ViewHeroesGodPool"])
+@bot.command(name="ViewHeroesGodPool")
 async def heros_god_pool(ctx, page: int = 1):
     """Display paginated heroes in a user's collection (name, rarity, and ID only)"""
     user_heroes = get_user_heroes(ctx.author.id)
@@ -1686,7 +1686,7 @@ async def heros_god_pool(ctx, page: int = 1):
     message += (
         f"\n---\n"
         f"Use `!ViewHero <number>` to see a hero's full details.\n"
-        f"To change pages, use `!ViewHerosGodPool <page #>` or `!ViewHeroesGodPool <page #>`.\n"
+        f"To change pages, use `!ViewHeroesGodPool <page #>`.\n"
         f"✨ Shiny   ❤️ Favorite"
     )
 
@@ -1699,7 +1699,7 @@ async def godpool_cmds(ctx):
     help_text = (
         "**GodPool Command List**\n\n"
         "`!CH` — Create a new hero using `CH_Alignment_Divinity_Race_Element_Class`.\n"
-        "`!HerosGodPool` / `!ViewHerosGodPool <page #>` / `!ViewHeroesGodPool <page #>` — List your heroes with ID, name, and rarity, 8 per page.\n"
+        "`!ViewHeroesGodPool <page #>` — List your heroes with ID, name, and rarity, 8 per page.\n"
         "`!ViewHero <id>` — Show full details for one hero.\n"
         "`!DeleteAllHeroesGodPool` — Delete all your heroes except those preserved.\n"
         "`!PreserveHero <id>` — Toggle preservation so a hero is not deleted by `!DeleteAllHeroesGodPool`.\n"
@@ -1707,7 +1707,7 @@ async def godpool_cmds(ctx):
         "`!NameHero <id> <nickname>` — Rename a hero while preserving its displayed rarity.\n"
         "`!HeroCheckIn <id>` — Check in on what a hero is currently doing.\n"
         "`!Dishero <id>` — Delete a specific hero from your collection.\n"
-        "`!AE` / `!Emporium` — View the current Adventures Exchange requirement and reward.\n"
+        "`!AE` — View the current Adventures Exchange requirement and reward.\n"
         "`!TradeHeroGodPool <id>` — Trade a hero to the Adventures Exchange for a reward.\n"
         "`!CheckInvGP` — View your current Adventures Exchange inventory items.\n"
         "`!ConsumeGP <itemid>` — Consume a reward item to boost your next hero roll.\n"
@@ -1742,7 +1742,7 @@ def hero_matches_emporium(hero, state):
     return True, None
 
 
-@bot.command(name="AE", aliases=["Emporium"])
+@bot.command(name="AE")
 async def show_emporium(ctx):
     state = get_emporium_state()
     await ctx.send(get_emporium_trade_message(state, ctx.author.id))
