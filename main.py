@@ -1649,7 +1649,7 @@ Every 10th roll is Lucky. 5% chance for Shiny.
     await ctx.send(msg)
 
 @bot.command(name="ViewHeroesGodPool")
-async def heros_god_pool(ctx, page: int = 1):
+async def heroes_god_pool(ctx, page: int = 1):
     """Display paginated heroes in a user's collection (name, rarity, and ID only)"""
     user_heroes = get_user_heroes(ctx.author.id)
     
@@ -1879,8 +1879,8 @@ async def view_hero(ctx, hero_id: int):
     await ctx.send(message)
 
 
-@bot.command(name="DeleteAllHerosGodPool")
-async def delete_all_heros_god_pool(ctx):
+@bot.command(name="DeleteAllHeroesGodPool")
+async def delete_all_heroes_god_pool(ctx):
     """Delete every hero in the calling user's collection (except preserved ones)."""
     heroes = load_user_heroes()
     user_id_str = str(ctx.author.id)
