@@ -279,17 +279,291 @@ def save_user_boosts(boosts):
     save_json_data(USER_BOOSTS_FILE, 'user_boosts.json', boosts)
 
 
-def get_next_item_id(user_id):
-    items = load_user_items().get(str(user_id), [])
-    max_id = 0
-    for item in items:
-        try:
-            item_id = int(item.get("id", 0))
-            if item_id > max_id:
-                max_id = item_id
-        except (TypeError, ValueError):
-            continue
-    return max_id + 1
+# =========================
+# 🎲 RANDOM ENCOUNTERS
+# =========================
+
+RA_ENCOUNTER_FILE = Path("ra_encounters.json")
+
+EASY_ENCOUNTERS = [
+    "Goblin", "Skeleton", "Zombie", "Bandit", "Wolf", "Cave Spider", "Slime", "Rat Swarm",
+    "Wild Boar", "Scout Rogue", "Kobold", "Ghoul", "Bat Swarm", "Mud Crawler", "Thief",
+    "Cultist", "Stray Hound", "Bone Hound", "Forest Imp", "Mimic Chest", "Rotling", "Cave Dweller",
+    "Rogue Mercenary", "Bog Toad", "Burrower", "Feral Villager", "Stone Gremlin", "Wandering Duelist",
+    "Crypt Rat", "Swamp Leech", "Prowler", "Ransacker", "Grave Robber", "Tunnel Lurker", "Corrupted Farmer"
+]
+
+NORMAL_ENCOUNTERS = [
+    "Orc", "Ogre", "Troll", "Necromancer", "Dark Knight", "Wyvern", "Harpy", "Werewolf",
+    "Executioner", "Battle Mage", "Warlock", "Shadow Stalker", "Bone Giant", "Drake", "Wraith",
+    "Plague Doctor", "Dread Soldier", "Flesh Golem", "Bounty Hunter", "Minotaur", "Crypt Keeper",
+    "Ghast", "Mutant Beast", "Raid Captain", "Blood Hunter", "Masked Assassin", "Cursed Monk",
+    "Arena Champion", "Revenant", "Pit Beast", "Crawling Horror", "Ravager", "Ancient Guardian",
+    "Fallen Paladin", "Cavern Beast"
+]
+
+CHALLENGING_ENCOUNTERS = [
+    "Ancient Dragon", "Titan", "Lich King", "Void Reaper", "World Serpent", "Demon Lord", "Colossus",
+    "Fallen Angel", "Behemoth", "Hydra", "Soul Tyrant", "Abyss Walker", "Death Knight", "Elder Vampire",
+    "Chaos Beast", "Dread Titan", "Celestial Hunter", "Nightmare Monarch", "Ancient Warden", "Voidspawn",
+    "Rift Stalker", "Bone Colossus", "Warbringer", "Immortal Gladiator", "Crownless King",
+    "Shadow Leviathan", "Forgotten Godling", "Eternal Sentinel", "Doom Herald", "Plague Tyrant",
+    "Ancient Chimera", "Execution Monarch", "Reality Eater", "Primeval Beast", "The Hollow One"
+]
+
+ALIGNMENT_TITLE_MAP = {
+    "Valiant": "Tyrannical",
+    "Good": "Wicked",
+    "Neutral": "Unstable",
+    "Mischievous": "Lawbound",
+    "Evil": "Righteous",
+}
+
+DIVINITY_TITLE_MAP = {
+    "Divine": "Demonic",
+    "Neutral": "Twisted",
+    "Hellish": "Sanctified",
+}
+
+CLASS_TITLE_MAP = {
+    "Warrior": "Berserker",
+    "Archer": "Marksman",
+    "Assassin": "Watcher",
+    "Mage": "Spellbound",
+    "Paladin": "Oathbreaker",
+    "Rogue": "Cutthroat",
+    "Admiral": "Dread Captain",
+    "Sniper": "Deadeye",
+    "Outlaw": "Bandit King",
+    "Bard": "Dirgesinger",
+    "Scavenger": "Scrapfiend",
+    "Ritualist": "Cultist",
+    "Commander": "Warlord",
+    "Defender": "Juggernaut",
+    "Barbarian": "Ravager",
+}
+
+ELEMENT_TITLE_MAP = {
+    "Fire": "Frostbitten",
+    "Water": "Parched",
+    "Earth": "Skybound",
+    "Air": "Grounded",
+    "Steel": "Corroded",
+    "Glass": "Shatterbound",
+    "Light": "Shadowed",
+    "Dark": "Radiant",
+    "Equinox": "Imbalanced",
+    "Celestial": "Fallen",
+    "Beast": "Tamed",
+    "Lightning": "Discharged",
+    "Magma": "Cooled",
+    "Spore": "Purified",
+    "Crystal": "Fractured",
+    "Color": "Faded",
+    "Plants": "Withered",
+    "Poison": "Cleansed",
+    "Corruption": "Redeemed",
+    "Mist": "Revealed",
+    "Death": "Living",
+    "Life": "Hollow",
+    "Ice": "Melted",
+    "Rain": "Droughtborn",
+    "Lava": "Hardened",
+    "Blood": "Bloodless",
+    "Desert": "Drowned",
+    "Arcane": "Silenced",
+}
+
+DIFFICULTY_POOLS = {
+    "Easy": EASY_ENCOUNTERS,
+    "Normal": NORMAL_ENCOUNTERS,
+    "Challenging": CHALLENGING_ENCOUNTERS,
+}
+
+RARITY_POOLS = {
+    "Easy": ["Common", "Trained", "Uncommon", "Handy"],
+    "Normal": ["Rare", "Pseudo", "Genesis"],
+    "Challenging": ["Legendary", "Mythical", "Ethereal", "Ascendant", "Primordial", "Omni", "God-Challenger"],
+}
+
+RARITY_WEIGHTS = {
+    "Easy": [45, 30, 20, 5],
+    "Normal": [60, 30, 10],
+    "Challenging": [55, 25, 12, 4, 2, 1, 1],
+}
+
+ENCOUNTER_UPGRADE_BASE = {
+    "Easy": 0.07,
+    "Normal": 0.11,
+    "Challenging": 0.15,
+}
+
+REQUIREMENT_CATEGORIES = ["alignment", "divinity", "class", "element"]
+REQUIREMENT_LABELS = {
+    "alignment": "Alignment",
+    "divinity": "Divinity",
+    "class": "Class",
+    "element": "Element",
+}
+
+REQUIREMENT_VALUE_OPTIONS = {
+    "alignment": list(ALIGNMENT_TITLE_MAP.keys()),
+    "divinity": list(DIVINITY_TITLE_MAP.keys()),
+    "class": list(CLASS_TITLE_MAP.keys()),
+    "element": list(ELEMENT_TITLE_MAP.keys()),
+}
+
+REQUIREMENT_TITLE_MAPS = {
+    "alignment": ALIGNMENT_TITLE_MAP,
+    "divinity": DIVINITY_TITLE_MAP,
+    "class": CLASS_TITLE_MAP,
+    "element": ELEMENT_TITLE_MAP,
+}
+
+
+def load_ra_encounter_state():
+    state = load_json_data(RA_ENCOUNTER_FILE, 'ra_encounters.json')
+    if not state:
+        return {"next_id": 1, "active": {}}
+    if "next_id" not in state:
+        state["next_id"] = 1
+    if "active" not in state:
+        state["active"] = {}
+    return state
+
+
+def save_ra_encounter_state(state):
+    save_json_data(RA_ENCOUNTER_FILE, 'ra_encounters.json', state)
+
+
+def get_next_ra_encounter_id(state):
+    next_id = state.get("next_id", 1)
+    state["next_id"] = next_id + 1
+    return next_id
+
+
+def build_hero_full_name(hero):
+    hero_name = hero.get("hero_name")
+    if not hero_name:
+        full_name = hero.get("full_name", "Unknown")
+        if " - (" in full_name:
+            prefix = full_name.rsplit(" - (", 1)[0]
+            parts = prefix.split(" ", 2)
+            if len(parts) >= 3:
+                hero_name = parts[2]
+            else:
+                hero_name = prefix
+        else:
+            hero_name = full_name
+
+    clazz = hero.get("class", "Unknown")
+    class_title = hero.get("class_title", "Okay")
+    rarity = hero.get("rarity", "Common")
+    element_part = hero.get("element_part", "")
+    if element_part and element_part not in hero_name:
+        hero_name = f"{hero_name}{element_part}"
+    return f"{class_title} {clazz} {hero_name} - ({rarity})"
+
+
+def choose_ra_requirements():
+    count = random.choices([1, 2, 3], weights=[55, 30, 15], k=1)[0]
+    categories = random.sample(REQUIREMENT_CATEGORIES, count)
+    requirements = []
+    for category in categories:
+        value = random.choice(REQUIREMENT_VALUE_OPTIONS[category])
+        title = REQUIREMENT_TITLE_MAPS[category].get(value, value)
+        requirements.append({"category": category, "value": value, "title": title})
+    return requirements
+
+
+def choose_ra_required_rarity(difficulty):
+    pool = RARITY_POOLS.get(difficulty, RARITY_POOLS["Easy"])
+    weights = RARITY_WEIGHTS.get(difficulty, [1] * len(pool))
+    return random.choices(pool, weights=weights, k=1)[0]
+
+
+def choose_ra_enemy(difficulty):
+    return random.choice(DIFFICULTY_POOLS.get(difficulty, EASY_ENCOUNTERS))
+
+
+def get_ra_requirement_title(requirements, enemy_name):
+    if not requirements:
+        return enemy_name
+    main = random.choice(requirements)
+    title = main.get("title", enemy_name)
+    return f"{title} {enemy_name}"
+
+
+def format_ra_requirements(requirements):
+    return "\n".join([f"- {REQUIREMENT_LABELS[r['category']]}: {r['value']}" for r in requirements])
+
+
+def get_rarity_order():
+    return {name: index for index, (_, name) in enumerate(RARITY_TIERS)}
+
+
+def get_class_title_order():
+    return [name for _, name in CLASS_TIERS]
+
+
+def increase_hero_rarity(hero):
+    order = get_rarity_order()
+    current_index = order.get(hero.get("rarity", "Common"), 0)
+    if current_index + 1 >= len(RARITY_TIERS):
+        return False
+    new_rarity = RARITY_TIERS[current_index + 1][1]
+    hero["rarity"] = new_rarity
+    hero["full_name"] = build_hero_full_name(hero)
+    return True
+
+
+def increase_hero_class_title(hero):
+    titles = get_class_title_order()
+    try:
+        current_index = titles.index(hero.get("class_title", "Okay"))
+    except ValueError:
+        current_index = 1
+    if current_index + 1 >= len(titles):
+        return False
+    hero["class_title"] = titles[current_index + 1]
+    hero["full_name"] = build_hero_full_name(hero)
+    return True
+
+
+def get_ra_upgrade_chance(hero_rarity, required_rarity, difficulty):
+    order = get_rarity_order()
+    hero_index = order.get(hero_rarity, 0)
+    required_index = order.get(required_rarity, 0)
+    base = ENCOUNTER_UPGRADE_BASE.get(difficulty, 0.07)
+    if hero_index <= required_index:
+        modifier = 1.0
+    elif hero_index == required_index + 1:
+        modifier = 0.75
+    elif hero_index == required_index + 2:
+        modifier = 0.55
+    else:
+        modifier = 0.40
+    return base * modifier
+
+
+def get_ra_encounter_message(encounter):
+    return (
+        f"**RANDOM ENCOUNTER READY!**\n"
+        f"Encounter ID: **{encounter['id']}**\n"
+        f"Difficulty: **{encounter['difficulty']}**\n"
+        f"Encounter: **{encounter['title']}**\n"
+        f"Required Rarity: **{encounter['required_rarity']}**\n"
+        f"Requirements:\n{format_ra_requirements(encounter['requirements'])}\n\n"
+        f"Use `!FaceRA {encounter['id']} <Hero ID>` to attempt this encounter. "
+        f"Higher rarity heroes can still attempt, but they have a smaller chance to gain a bonus upgrade."
+    )
+
+
+def remove_user_ra_encounter(state, user_id):
+    active = state.get("active", {})
+    if str(user_id) in active:
+        del active[str(user_id)]
+        save_ra_encounter_state(state)
 
 
 def add_item_to_user(user_id, item_data):
@@ -330,10 +604,6 @@ def pop_user_boost(user_id):
     boost = boosts.pop(str(user_id), None)
     save_user_boosts(boosts)
     return boost
-
-
-def get_rarity_order():
-    return {name: index for index, (_, name) in enumerate(RARITY_TIERS)}
 
 
 def rarity_meets_requirement(hero_rarity, requirement_rarity):
@@ -1711,9 +1981,126 @@ async def godpool_cmds(ctx):
         "`!TradeHeroGodPool <id>` — Trade a hero to the Adventures Exchange for a reward.\n"
         "`!CheckInvGP` — View your current Adventures Exchange inventory items.\n"
         "`!ConsumeGP <itemid>` — Consume a reward item to boost your next hero roll.\n"
+        "`!RAGodPool <Easy|Normal|Challenging>` — Start a random encounter and receive an encounter ID.\n"
+        "`!FaceRA <Encounter ID> <Hero ID>` — Attempt the active random encounter with a hero.\n"
         "`!GodPoolCmds` — Show this command list.\n"
     )
     await ctx.send(help_text)
+
+
+@bot.command(name="RAGodPool")
+async def random_encounter(ctx, difficulty: str):
+    difficulty_clean = difficulty.capitalize()
+    if difficulty_clean not in DIFFICULTY_POOLS:
+        await ctx.send("Invalid difficulty. Choose one of: Easy, Normal, Challenging.")
+        return
+
+    state = load_ra_encounter_state()
+    active = state.get("active", {})
+    user_id_str = str(ctx.author.id)
+    if user_id_str in active:
+        encounter = active[user_id_str]
+        await ctx.send(
+            f"You already have an active random encounter. Finish it with `!FaceRA {encounter['id']} <Hero ID>` before starting a new one."
+        )
+        return
+
+    enemy = choose_ra_enemy(difficulty_clean)
+    requirements = choose_ra_requirements()
+    required_rarity = choose_ra_required_rarity(difficulty_clean)
+    title = get_ra_requirement_title(requirements, enemy)
+    encounter_id = get_next_ra_encounter_id(state)
+
+    encounter = {
+        "id": encounter_id,
+        "difficulty": difficulty_clean,
+        "enemy": enemy,
+        "title": title,
+        "requirements": requirements,
+        "required_rarity": required_rarity,
+        "created_at": datetime.datetime.utcnow().isoformat(),
+    }
+
+    active[user_id_str] = encounter
+    state["active"] = active
+    save_ra_encounter_state(state)
+
+    await ctx.send(get_ra_encounter_message(encounter))
+
+
+@bot.command(name="FaceRA")
+async def face_ra(ctx, encounter_id: int, hero_id: int):
+    state = load_ra_encounter_state()
+    active = state.get("active", {})
+    encounter = active.get(str(ctx.author.id))
+    if not encounter or encounter.get("id") != encounter_id:
+        await ctx.send(
+            "No active random encounter with that ID was found for you. Start one with `!RAGodPool <Easy|Normal|Challenging>`."
+        )
+        return
+
+    heroes = load_user_heroes()
+    user_heroes = heroes.get(str(ctx.author.id), [])
+    hero = next((h for h in user_heroes if h.get("id") == hero_id), None)
+    if not hero:
+        await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+        return
+
+    if not rarity_meets_requirement(hero.get("rarity", "Common"), encounter["required_rarity"]):
+        remove_user_ra_encounter(state, ctx.author.id)
+        await ctx.send(
+            f"Your hero **#{hero_id}** `{hero.get('full_name', 'Unknown')}` must be at least **{encounter['required_rarity']}** rarity to attempt this encounter."
+        )
+        return
+
+    failure_reason = None
+    for req in encounter["requirements"]:
+        if req["category"] == "alignment" and hero.get("alignment") != req["value"]:
+            failure_reason = f"Requires {req['value']} alignment. Your hero has {hero.get('alignment', 'Unknown')}."
+            break
+        if req["category"] == "divinity" and hero.get("divinity") != req["value"]:
+            failure_reason = f"Requires {req['value']} divinity. Your hero has {hero.get('divinity', 'Unknown')}."
+            break
+        if req["category"] == "class" and hero.get("class") != req["value"]:
+            failure_reason = f"Requires {req['value']} class. Your hero is {hero.get('class', 'Unknown')}."
+            break
+        if req["category"] == "element" and hero.get("element_raw", hero.get("element", "")) != req["value"]:
+            failure_reason = f"Requires {req['value']} element. Your hero has {hero.get('element_raw', hero.get('element', 'Unknown'))}."
+            break
+
+    if failure_reason:
+        remove_user_ra_encounter(state, ctx.author.id)
+        await ctx.send(
+            f"Your hero **#{hero_id}** `{hero.get('full_name', 'Unknown')}` failed the encounter **{encounter['title']}**. {failure_reason}"
+        )
+        return
+
+    success_message = (
+        f"✅ **Success!** Your hero **#{hero_id}** `{hero.get('full_name', 'Unknown')}` defeated **{encounter['title']}**."
+    )
+    upgrade_amount = get_ra_upgrade_chance(hero.get("rarity", "Common"), encounter["required_rarity"], encounter["difficulty"])
+    upgrade_type = random.choice(["class", "rarity"])
+    upgraded = False
+    bonus_text = ""
+
+    if random.random() < upgrade_amount:
+        if upgrade_type == "class":
+            upgraded = increase_hero_class_title(hero)
+            if upgraded:
+                bonus_text = f"\nYour hero's class title has improved to **{hero['class_title']}**!"
+        else:
+            upgraded = increase_hero_rarity(hero)
+            if upgraded:
+                bonus_text = f"\nYour hero's rarity has improved to **{hero['rarity']}**!"
+
+    if not upgraded:
+        bonus_text = "\nNo bonus rank increase occurred this time. Better luck on the next encounter."
+
+    heroes[str(ctx.author.id)] = user_heroes
+    save_user_heroes(heroes)
+    remove_user_ra_encounter(state, ctx.author.id)
+
+    await ctx.send(success_message + bonus_text)
 
 
 def get_emporium_trade_message(state, user_id):
@@ -2184,6 +2571,7 @@ async def on_message(message):
 
             hero_data = {
                 "full_name": final_name,
+                "hero_name": name,
                 "class": clazz,
                 "class_title": class_title,
                 "rarity": rarity,
@@ -2192,6 +2580,7 @@ async def on_message(message):
                 "race": race,
                 "element": element_title,
                 "element_raw": element,
+                "element_part": element_part,
                 "feat": feat,
                 "shiny": is_shiny,
                 "favorite": False,
