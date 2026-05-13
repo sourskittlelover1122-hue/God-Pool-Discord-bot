@@ -2778,18 +2778,18 @@ async def on_message(message):
 
         try:
             parts = message.content.split("_")
-            if len(parts) != 9:
+            if len(parts) != 10:
                 await message.channel.send("Invalid format. Use: God_CH_Alignment_Divinity_Race_Element_Class_OVR_CS_Shiny")
                 return
 
-            alignment = parts[1]
-            divinity = parts[2]
-            race = parts[3]
-            element = parts[4]
-            clazz = parts[5]
-            ovr_rank = parts[6]
-            class_rank = parts[7]
-            shiny_str = parts[8]
+            alignment = parts[2]
+            divinity = parts[3]
+            race = parts[4]
+            element = parts[5]
+            clazz = parts[6]
+            ovr_rank = parts[7]
+            class_rank = parts[8]
+            shiny_str = parts[9]
 
             VALID_ALIGNMENTS = {"Valiant", "Good", "Neutral", "Mischievous", "Evil"}
             VALID_DIVINITIES = {"Divine", "Neutral", "Hellish"}
