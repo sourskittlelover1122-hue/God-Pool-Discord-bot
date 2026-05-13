@@ -494,8 +494,50 @@ def get_ra_requirement_title(requirements, enemy_name):
     return f"{title} {enemy_name}"
 
 
-def format_ra_requirements(requirements):
+def format_ra_requirements(requirements, encounter=None):
+    if encounter and encounter.get("sought_out"):
+        target_name = encounter.get("target_hero_name", "the sought-out hero")
+        return f"- Only **{target_name}** may attempt this encounter."
+    if not requirements:
+        return "- No special requirements."
     return "\n".join([f"- {REQUIREMENT_LABELS[r['category']]}: {r['value']}" for r in requirements])
+
+
+def hero_matches_ra_requirements(hero, encounter):
+    if encounter.get("sought_out"):
+        if hero.get("id") != encounter.get("target_hero_id"):
+            target_name = encounter.get("target_hero_name", "the sought-out hero")
+            return False, f"This encounter was sought out for **{target_name}** and only that hero may attempt it."
+        return True, None
+
+    if not rarity_meets_requirement(hero.get("rarity", "Common"), encounter.get("required_rarity", "Common")):
+        return False, f"That hero must be at least **{encounter.get('required_rarity', 'Common')}** rarity to attempt this encounter."
+
+    for req in encounter.get("requirements", []):
+        if req["category"] == "alignment" and hero.get("alignment") != req["value"]:
+            return False, f"Requires {req['value']} alignment. Your hero has {hero.get('alignment', 'Unknown')}."
+        if req["category"] == "divinity" and hero.get("divinity") != req["value"]:
+            return False, f"Requires {req['value']} divinity. Your hero has {hero.get('divinity', 'Unknown')}."
+        if req["category"] == "class" and hero.get("class") != req["value"]:
+            return False, f"Requires {req['value']} class. Your hero is {hero.get('class', 'Unknown')}."
+        if req["category"] == "element" and hero.get("element_raw", hero.get("element", "")) != req["value"]:
+            return False, f"Requires {req['value']} element. Your hero has {hero.get('element_raw', hero.get('element', 'Unknown'))}."
+    return True, None
+
+
+def build_ra_encounter_embed(encounter):
+    embed = discord.Embed(title="🧭 Random Encounter", color=0x00ffcc)
+    embed.add_field(name="Encounter ID", value=str(encounter["id"]), inline=True)
+    embed.add_field(name="Difficulty", value=encounter["difficulty"], inline=True)
+    embed.add_field(name="Encounter", value=encounter["title"], inline=False)
+    required_rarity_text = "No rarity requirement" if encounter.get("sought_out") else encounter.get("required_rarity", "Unknown")
+    embed.add_field(name="Required Rarity", value=required_rarity_text, inline=True)
+    embed.add_field(name="Requirements", value=format_ra_requirements(encounter.get("requirements", []), encounter), inline=False)
+    if encounter.get("sought_out"):
+        embed.add_field(name="Sought Out By", value=encounter.get("sought_out_person", "Unknown"), inline=True)
+        embed.add_field(name="Sought Hero", value=f"#{encounter.get('target_hero_id')} — {encounter.get('target_hero_name', 'Unknown')}", inline=True)
+    embed.set_footer(text=f"Use !FaceRA {encounter['id']} <Hero ID> to attempt the encounter.")
+    return embed
 
 
 def get_rarity_order():
@@ -552,8 +594,8 @@ def get_ra_encounter_message(encounter):
         f"Encounter ID: **{encounter['id']}**\n"
         f"Difficulty: **{encounter['difficulty']}**\n"
         f"Encounter: **{encounter['title']}**\n"
-        f"Required Rarity: **{encounter['required_rarity']}**\n"
-        f"Requirements:\n{format_ra_requirements(encounter['requirements'])}\n\n"
+        f"Required Rarity: **{encounter.get('required_rarity', 'Unknown')}**\n"
+        f"Requirements:\n{format_ra_requirements(encounter.get('requirements', []), encounter)}\n\n"
         f"Use `!FaceRA {encounter['id']} <Hero ID>` to attempt this encounter. "
         f"Higher rarity heroes can still attempt, but they have a smaller chance to gain a bonus upgrade."
     )
@@ -626,6 +668,40 @@ def get_reward_items_for_rank(rank):
         {"name": "Weak Luck Stone", "type": "luck", "description": "Teensy overall rank luck boost on your next roll.", "multiplier": 1.10},
         {"name": "Weak Training Order", "type": "class", "description": "Teensy class rank luck boost on your next roll.", "multiplier": 1.10},
     ]
+
+RA_REWARD_POOLS = {
+    "Easy": [
+        {"name": "Weak Luck Stone", "type": "luck", "description": "Teensy overall luck boost from an easy victory.", "multiplier": 1.10},
+        {"name": "Weak Training Order", "type": "class", "description": "Teensy class training boost from an easy victory.", "multiplier": 1.10},
+    ],
+    "Normal": [
+        {"name": "Natural Luck Stone", "type": "luck", "description": "Balanced overall luck boost from a solid victory.", "multiplier": 1.20},
+        {"name": "Normal Training Order", "type": "class", "description": "Balanced class training boost from a solid victory.", "multiplier": 1.20},
+    ],
+    "Challenging": [
+        {"name": "Enchanted Luck Stone", "type": "luck", "description": "Strong overall luck boost from a hard-fought victory.", "multiplier": 1.30},
+        {"name": "Elite Training Order", "type": "class", "description": "Strong class training boost from a hard-fought victory.", "multiplier": 1.30},
+    ],
+}
+
+
+def get_ra_reward_for_difficulty(difficulty):
+    return RA_REWARD_POOLS.get(difficulty, RA_REWARD_POOLS["Easy"])
+
+
+def try_grant_ra_reward(user_id, difficulty):
+    if random.random() >= 0.4:
+        return None
+    reward_item = random.choice(get_ra_reward_for_difficulty(difficulty))
+    item_data = {
+        "name": reward_item["name"],
+        "type": reward_item["type"],
+        "description": reward_item["description"],
+        "multiplier": reward_item["multiplier"],
+        "created_at": datetime.datetime.utcnow().isoformat(),
+    }
+    add_item_to_user(user_id, item_data)
+    return item_data
 
 
 def get_required_rarity_choices():
@@ -1983,6 +2059,9 @@ async def godpool_cmds(ctx):
         "`!ConsumeGP <itemid>` — Consume a reward item to boost your next hero roll.\n"
         "`!RAGodPool <Easy|Normal|Challenging>` — Start a random encounter and receive an encounter ID.\n"
         "`!FaceRA <Encounter ID> <Hero ID>` — Attempt the active random encounter with a hero.\n"
+        "`!SearchHeroGP <Encounter ID>` — Find which of your heroes can face the active encounter.\n"
+        "`!CancelRA <Encounter ID>` — Cancel your active random encounter.\n"
+        "`!HeroSpeakGD <Hero ID> <message>` — Have a hero say a custom message.\n"
         "`!GodPoolCmds` — Show this command list.\n"
     )
     await ctx.send(help_text)
@@ -2008,24 +2087,39 @@ async def random_encounter(ctx, difficulty: str):
     enemy = choose_ra_enemy(difficulty_clean)
     requirements = choose_ra_requirements()
     required_rarity = choose_ra_required_rarity(difficulty_clean)
-    title = get_ra_requirement_title(requirements, enemy)
     encounter_id = get_next_ra_encounter_id(state)
 
     encounter = {
         "id": encounter_id,
         "difficulty": difficulty_clean,
         "enemy": enemy,
-        "title": title,
         "requirements": requirements,
         "required_rarity": required_rarity,
         "created_at": datetime.datetime.utcnow().isoformat(),
     }
 
+    if random.random() < 0.10:
+        user_heroes = load_user_heroes().get(user_id_str, [])
+        if user_heroes:
+            sought_hero = random.choice(user_heroes)
+            sought_person = random.choice(FIRST_NAMES)
+            encounter["sought_out"] = True
+            encounter["sought_out_person"] = sought_person
+            encounter["target_hero_id"] = sought_hero.get("id")
+            encounter["target_hero_name"] = sought_hero.get("hero_name", sought_hero.get("full_name", "Unknown"))
+            encounter["requirements"] = []
+            encounter["required_rarity"] = "Common"
+            encounter["title"] = f"{sought_person} sought out {encounter['target_hero_name']} to face {enemy}"
+        else:
+            encounter["title"] = get_ra_requirement_title(requirements, enemy)
+    else:
+        encounter["title"] = get_ra_requirement_title(requirements, enemy)
+
     active[user_id_str] = encounter
     state["active"] = active
     save_ra_encounter_state(state)
 
-    await ctx.send(get_ra_encounter_message(encounter))
+    await ctx.send(embed=build_ra_encounter_embed(encounter))
 
 
 @bot.command(name="FaceRA")
@@ -2046,61 +2140,119 @@ async def face_ra(ctx, encounter_id: int, hero_id: int):
         await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
         return
 
-    if not rarity_meets_requirement(hero.get("rarity", "Common"), encounter["required_rarity"]):
+    match, reason = hero_matches_ra_requirements(hero, encounter)
+    if not match:
         remove_user_ra_encounter(state, ctx.author.id)
         await ctx.send(
-            f"Your hero **#{hero_id}** `{hero.get('full_name', 'Unknown')}` must be at least **{encounter['required_rarity']}** rarity to attempt this encounter."
+            f"Your hero **#{hero_id}** `{hero.get('full_name', 'Unknown')}` failed the encounter **{encounter['title']}**. {reason}"
         )
         return
 
-    failure_reason = None
-    for req in encounter["requirements"]:
-        if req["category"] == "alignment" and hero.get("alignment") != req["value"]:
-            failure_reason = f"Requires {req['value']} alignment. Your hero has {hero.get('alignment', 'Unknown')}."
-            break
-        if req["category"] == "divinity" and hero.get("divinity") != req["value"]:
-            failure_reason = f"Requires {req['value']} divinity. Your hero has {hero.get('divinity', 'Unknown')}."
-            break
-        if req["category"] == "class" and hero.get("class") != req["value"]:
-            failure_reason = f"Requires {req['value']} class. Your hero is {hero.get('class', 'Unknown')}."
-            break
-        if req["category"] == "element" and hero.get("element_raw", hero.get("element", "")) != req["value"]:
-            failure_reason = f"Requires {req['value']} element. Your hero has {hero.get('element_raw', hero.get('element', 'Unknown'))}."
-            break
-
-    if failure_reason:
-        remove_user_ra_encounter(state, ctx.author.id)
-        await ctx.send(
-            f"Your hero **#{hero_id}** `{hero.get('full_name', 'Unknown')}` failed the encounter **{encounter['title']}**. {failure_reason}"
-        )
-        return
-
-    success_message = (
-        f"✅ **Success!** Your hero **#{hero_id}** `{hero.get('full_name', 'Unknown')}` defeated **{encounter['title']}**."
-    )
-    upgrade_amount = get_ra_upgrade_chance(hero.get("rarity", "Common"), encounter["required_rarity"], encounter["difficulty"])
+    reward_item = try_grant_ra_reward(ctx.author.id, encounter["difficulty"])
+    upgrade_amount = get_ra_upgrade_chance(hero.get("rarity", "Common"), encounter.get("required_rarity", "Common"), encounter["difficulty"])
     upgrade_type = random.choice(["class", "rarity"])
     upgraded = False
-    bonus_text = ""
+    bonus_text = "No bonus rank increase occurred this time. Better luck on the next encounter."
 
     if random.random() < upgrade_amount:
         if upgrade_type == "class":
             upgraded = increase_hero_class_title(hero)
             if upgraded:
-                bonus_text = f"\nYour hero's class title has improved to **{hero['class_title']}**!"
+                bonus_text = f"Your hero's class title has improved to **{hero['class_title']}**!"
         else:
             upgraded = increase_hero_rarity(hero)
             if upgraded:
-                bonus_text = f"\nYour hero's rarity has improved to **{hero['rarity']}**!"
-
-    if not upgraded:
-        bonus_text = "\nNo bonus rank increase occurred this time. Better luck on the next encounter."
+                bonus_text = f"Your hero's rarity has improved to **{hero['rarity']}**!"
 
     heroes[str(ctx.author.id)] = user_heroes
     save_user_heroes(heroes)
     remove_user_ra_encounter(state, ctx.author.id)
 
-    await ctx.send(success_message + bonus_text)
+    embed = discord.Embed(title="✅ Random Encounter Victory", color=0x00ffcc)
+    embed.add_field(name="Hero", value=f"#{hero_id} {hero.get('full_name', 'Unknown')}", inline=False)
+    embed.add_field(name="Encounter", value=encounter["title"], inline=False)
+    embed.add_field(name="Difficulty", value=encounter["difficulty"], inline=True)
+    embed.add_field(name="Result", value="Defeated", inline=True)
+    embed.add_field(name="Bonus", value=bonus_text, inline=False)
+    if reward_item:
+        embed.add_field(name="Reward", value=f"{reward_item['name']} — {reward_item['description']}", inline=False)
+        embed.set_footer(text="The reward has been added to your inventory. Use !CheckInvGP to view it.")
+    else:
+        embed.set_footer(text="No item reward dropped this time. Try another encounter.")
+
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="SearchHeroGP")
+async def search_hero_gp(ctx, encounter_id: int):
+    state = load_ra_encounter_state()
+    active = state.get("active", {})
+    encounter = active.get(str(ctx.author.id))
+    if not encounter or encounter.get("id") != encounter_id:
+        await ctx.send("No active random encounter with that ID was found for you.")
+        return
+
+    user_heroes = get_user_heroes(ctx.author.id)
+    matching_heroes = []
+    for hero in user_heroes:
+        match, _ = hero_matches_ra_requirements(hero, encounter)
+        if match:
+            matching_heroes.append(hero)
+
+    if not matching_heroes:
+        await ctx.send(
+            f"No heroes in your collection currently match the requirements for encounter **{encounter['title']}**."
+        )
+        return
+
+    embed = discord.Embed(title="🔎 Encounter Search Results", color=0x00ffcc)
+    embed.add_field(name="Encounter", value=encounter["title"], inline=False)
+    embed.add_field(name="Difficulty", value=encounter["difficulty"], inline=True)
+    embed.add_field(name="Requirements", value=format_ra_requirements(encounter.get("requirements", []), encounter), inline=False)
+
+    hero_lines = [f"**#{hero['id']}** {hero.get('full_name', 'Unknown')}" for hero in matching_heroes[:10]]
+    if len(matching_heroes) > 10:
+        hero_lines.append(f"...and {len(matching_heroes) - 10} more heroes.")
+
+    embed.add_field(name="Matching Heroes", value="\n".join(hero_lines), inline=False)
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="CancelRA")
+async def cancel_ra(ctx, encounter_id: int):
+    state = load_ra_encounter_state()
+    active = state.get("active", {})
+    encounter = active.get(str(ctx.author.id))
+    if not encounter or encounter.get("id") != encounter_id:
+        await ctx.send("No active random encounter with that ID was found for you.")
+        return
+
+    del active[str(ctx.author.id)]
+    state["active"] = active
+    save_ra_encounter_state(state)
+
+    embed = discord.Embed(title="❌ Random Encounter Cancelled", color=0xff6666)
+    embed.add_field(name="Encounter ID", value=str(encounter_id), inline=True)
+    embed.add_field(name="Title", value=encounter["title"], inline=False)
+    embed.set_footer(text="You may start a new random encounter with !RAGodPool.")
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="HeroSpeakGD")
+async def hero_speak_gd(ctx, hero_id: int, *, text: str):
+    user_heroes = get_user_heroes(ctx.author.id)
+    hero = next((h for h in user_heroes if h.get("id") == hero_id), None)
+    if not hero:
+        await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+        return
+
+    hero_name = hero.get("hero_name", hero.get("full_name", "Unknown"))
+    class_title = hero.get("class_title", "Unknown")
+    message_text = f"{hero_name}-({class_title}) Says: {text}"
+
+    embed = discord.Embed(title="💬 Hero Speech", description=message_text, color=0x00ffcc)
+    embed.add_field(name="Hero", value=f"#{hero_id} {hero.get('full_name', 'Unknown')}", inline=False)
+    await ctx.send(embed=embed)
 
 
 def get_emporium_trade_message(state, user_id):
