@@ -992,76 +992,76 @@ def apply_event_boosts(alignment, divinity, element, clazz, race, align_roll, di
     event_name = state["name"]
     if event_name == "Blood Moon Rising":
         if alignment in ["Death", "Corruption", "Evil"]:
-            align_roll *= random.uniform(1.4, 1.9)
+            align_roll *= random.uniform(1.05, 1.15)
     elif event_name == "Celestial Convergence":
         if divinity == "Divine":
-            div_roll *= random.uniform(1.35, 1.75)
+            div_roll *= random.uniform(1.05, 1.15)
         if element == "Celestial":
-            elem_roll *= random.uniform(1.35, 1.75)
+            elem_roll *= random.uniform(1.05, 1.15)
     elif event_name == "Infernal Surge":
         if element in ["Lava", "Magma", "Fire"]:
-            elem_roll *= random.uniform(1.25, 1.7)
+            elem_roll *= random.uniform(1.08, 1.2)
             if random.random() < 0.2:
-                elem_roll *= random.uniform(0.55, 1.3)
+                elem_roll *= random.uniform(0.9, 1.1)
     elif event_name == "The Hollow Fog":
         if element in ["Mist", "Dark"]:
-            shiny_chance += 0.12
+            shiny_chance += 0.04
     elif event_name == "Verdant Bloom":
         if element in ["Plants", "Life"]:
-            elem_roll *= random.uniform(1.25, 1.7)
+            elem_roll *= random.uniform(1.08, 1.2)
             if elem_roll < 1.0:
-                elem_roll *= 0.75
+                elem_roll *= 0.95
     elif event_name == "Thunder Dominion":
         if element in ["Lightning", "Air"]:
-            class_roll *= random.uniform(1.25, 1.65)
+            class_roll *= random.uniform(1.08, 1.18)
     elif event_name == "The Drowned Tide":
         if element in ["Water", "Rain"]:
-            elem_roll *= random.uniform(1.3, 1.75)
-            shiny_chance += 0.1
+            elem_roll *= random.uniform(1.08, 1.2)
+            shiny_chance += 0.03
     elif event_name == "Gravecall Night":
         if race == "Undead" or element == "Death":
-            align_roll *= random.uniform(1.5, 2.1)
+            align_roll *= random.uniform(1.1, 1.25)
     elif event_name == "Prismatic Awakening":
         if element in ["Glass", "Crystal", "Color"]:
-            class_roll *= random.uniform(1.35, 1.8)
+            class_roll *= random.uniform(1.08, 1.2)
     elif event_name == "The Beast Hunt":
         if race == "Beast" or element == "Beast":
-            class_roll *= random.uniform(1.35, 1.8)
+            class_roll *= random.uniform(1.08, 1.2)
     elif event_name == "Eclipse of Judgment":
-        align_roll *= random.uniform(1.4, 2.0)
+        align_roll *= random.uniform(1.08, 1.2)
     elif event_name == "Forgeheart Festival":
         if element in ["Steel", "Earth"]:
-            elem_roll *= random.uniform(1.35, 1.8)
+            elem_roll *= random.uniform(1.08, 1.2)
     elif event_name == "The Rotting Bloom":
         if element in ["Spore", "Poison"]:
-            elem_roll *= random.uniform(1.4, 1.95)
-            shiny_chance += 0.15
+            elem_roll *= random.uniform(1.1, 1.3)
+            shiny_chance += 0.05
     elif event_name == "Starfall Cataclysm":
         if element in ["Celestial", "Equinox"]:
-            align_roll *= random.uniform(1.4, 1.9)
-            class_roll *= random.uniform(1.25, 1.6)
+            align_roll *= random.uniform(1.08, 1.2)
+            class_roll *= random.uniform(1.08, 1.18)
     elif event_name == "The Ashen Era":
         if element in ["Fire", "Lava", "Magma"]:
-            class_roll *= random.uniform(1.35, 1.8)
+            class_roll *= random.uniform(1.08, 1.2)
     elif event_name == "Sanctuary of Dawn":
         if element == "Light" or alignment in ["Good", "Valiant"]:
             if div_roll < 1.0:
-                div_roll *= 1.25
+                div_roll *= 1.08
             if align_roll < 1.0:
-                align_roll *= 1.25
+                align_roll *= 1.08
     elif event_name == "The Rift Collapse":
-        elem_roll *= 2.0
+        elem_roll *= 1.3
     elif event_name == "The Wandering Tempest":
         if element in ["Air", "Rain", "Lightning"]:
-            elem_roll *= random.uniform(1.3, 1.75)
+            elem_roll *= random.uniform(1.08, 1.2)
     elif event_name == "Kingdoms at War":
         if clazz in ["Commander", "Paladin", "Admiral", "Warrior"]:
-            class_roll *= random.uniform(1.5, 2.0)
+            class_roll *= random.uniform(1.15, 1.35)
     elif event_name == "The Abyss Stares Back":
         if element in ["Corruption", "Dark"] or alignment in ["Mischievous", "Evil"]:
-            bonus = random.uniform(0.45, 1.1)
+            bonus = random.uniform(1.0, 1.15)
             align_roll *= bonus
-            elem_roll *= random.uniform(0.75, 1.25)
+            elem_roll *= random.uniform(0.98, 1.1)
 
     return align_roll, div_roll, elem_roll, class_roll, shiny_chance
 
@@ -2253,6 +2253,7 @@ async def hero_speak_gd(ctx, hero_id: int, *, text: str):
     embed = discord.Embed(title="💬 Hero Speech", description=message_text, color=0x00ffcc)
     embed.add_field(name="Hero", value=f"#{hero_id} {hero.get('full_name', 'Unknown')}", inline=False)
     await ctx.send(embed=embed)
+    await ctx.message.delete()
 
 
 def get_emporium_trade_message(state, user_id):
@@ -2768,6 +2769,114 @@ async def on_message(message):
 
         except Exception as e:
             await message.channel.send(f"Error creating hero: {e}")
+
+    if message.content.startswith("God_CH_"):
+        # Admin command: only mrleave can use this
+        if str(message.author) != "mrleave":
+            await message.channel.send("⚠️ You do not have permission to use this command.")
+            return
+
+        try:
+            parts = message.content.split("_")
+            if len(parts) != 9:
+                await message.channel.send("Invalid format. Use: God_CH_Alignment_Divinity_Race_Element_Class_OVR_CS_Shiny")
+                return
+
+            alignment = parts[1]
+            divinity = parts[2]
+            race = parts[3]
+            element = parts[4]
+            clazz = parts[5]
+            ovr_rank = parts[6]
+            class_rank = parts[7]
+            shiny_str = parts[8]
+
+            VALID_ALIGNMENTS = {"Valiant", "Good", "Neutral", "Mischievous", "Evil"}
+            VALID_DIVINITIES = {"Divine", "Neutral", "Hellish"}
+            VALID_RACES = {"Human", "Construct", "Elven", "Goblin", "Beast", "Ogre", "Deep-Crawler", "Celestial", "Angel", "Demon", "Dwarf", "Elemental", "Undead", "Magma-Crawler"}
+            VALID_ELEMENTS = set(ELEMENTS.keys())
+            VALID_CLASSES = {"Warrior", "Archer", "Assassin", "Mage", "Paladin", "Rogue", "Admiral", "Sniper", "Outlaw", "Bard", "Scavenger", "Ritualist", "Commander", "Defender", "Barbarian"}
+            VALID_OVR_RANKS = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Divine", "Omni", "God-Challenger", "Transcendant", "Eternal"}
+            VALID_CLASS_RANKS = {"Apprentice", "Initiate", "Novice", "Adept", "Expert", "Master", "Grandmaster", "Transcendant", "Divine", "Legendary"}
+
+            if alignment not in VALID_ALIGNMENTS:
+                await message.channel.send(f"Invalid alignment '{alignment}'.")
+                return
+            if divinity not in VALID_DIVINITIES:
+                await message.channel.send(f"Invalid divinity '{divinity}'.")
+                return
+            if race not in VALID_RACES:
+                await message.channel.send(f"Invalid race '{race}'.")
+                return
+            if element not in VALID_ELEMENTS:
+                await message.channel.send(f"Invalid element '{element}'.")
+                return
+            if clazz not in VALID_CLASSES:
+                await message.channel.send(f"Invalid class '{clazz}'.")
+                return
+            if ovr_rank not in VALID_OVR_RANKS:
+                await message.channel.send(f"Invalid OVR rank '{ovr_rank}'.")
+                return
+            if class_rank not in VALID_CLASS_RANKS:
+                await message.channel.send(f"Invalid class rank '{class_rank}'.")
+                return
+            if shiny_str.lower() not in ["yes", "no"]:
+                await message.channel.send(f"Shiny must be 'Yes' or 'No'.")
+                return
+
+            is_shiny = shiny_str.lower() == "yes"
+
+            element_good, element_bad = ELEMENTS[element]
+            element_title = element_good
+            element_part = f" the {element_good}"
+
+            name = random_name()
+            feat = roll_feat(ovr_rank)
+
+            final_name = f"{class_rank} {clazz} {name}{element_part} - ({ovr_rank})"
+
+            created_at = datetime.datetime.now().strftime("%H:%M:%S %d %B %Y")
+
+            hero_data = {
+                "full_name": final_name,
+                "hero_name": name,
+                "class": clazz,
+                "class_title": class_rank,
+                "rarity": ovr_rank,
+                "divinity": divinity,
+                "alignment": alignment,
+                "race": race,
+                "element": element_title,
+                "element_raw": element,
+                "element_part": element_part,
+                "feat": feat,
+                "shiny": is_shiny,
+                "favorite": False,
+                "preserved": False,
+                "created_at": created_at
+            }
+
+            add_hero_to_user(message.author.id, hero_data)
+
+            embed = discord.Embed(title="🔱 Divine Hero Created 🔱", color=0xffd700)
+            embed.add_field(name="Hero", value=final_name, inline=False)
+            embed.add_field(name="Hero ID", value=str(hero_data["id"]), inline=False)
+            embed.add_field(name="Created At", value=created_at, inline=False)
+            if is_shiny:
+                embed.add_field(name="✨ SHINY ✨", value="This is a SHINY hero!", inline=False)
+            embed.add_field(name="Class", value=f"{clazz} ({class_rank})", inline=True)
+            embed.add_field(name="OVR Rank", value=ovr_rank, inline=True)
+            embed.add_field(name="Element", value=f"{element} ({element_title})", inline=True)
+            embed.add_field(name="Divinity", value=divinity, inline=True)
+            embed.add_field(name="Alignment", value=alignment, inline=True)
+            embed.add_field(name="Race", value=race, inline=True)
+            embed.add_field(name="Feat", value=feat, inline=False)
+            embed.set_footer(text="Admin hero creation by mrleave.")
+
+            await message.channel.send(embed=embed)
+
+        except Exception as e:
+            await message.channel.send(f"Error creating divine hero: {e}")
 
 
 bot.run(TOKEN)
