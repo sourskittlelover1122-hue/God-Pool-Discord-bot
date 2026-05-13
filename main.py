@@ -2796,8 +2796,8 @@ async def on_message(message):
             VALID_RACES = {"Human", "Construct", "Elven", "Goblin", "Beast", "Ogre", "Deep-Crawler", "Celestial", "Angel", "Demon", "Dwarf", "Elemental", "Undead", "Magma-Crawler"}
             VALID_ELEMENTS = set(ELEMENTS.keys())
             VALID_CLASSES = {"Warrior", "Archer", "Assassin", "Mage", "Paladin", "Rogue", "Admiral", "Sniper", "Outlaw", "Bard", "Scavenger", "Ritualist", "Commander", "Defender", "Barbarian"}
-            VALID_OVR_RANKS = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythical", "Divine", "Omni", "God-Challenger", "Transcendant", "Eternal"}
-            VALID_CLASS_RANKS = {"Apprentice", "Initiate", "Novice", "Adept", "Expert", "Master", "Grandmaster", "Transcendant", "Divine", "Legendary"}
+            VALID_OVR_RANKS = {"Common", "Trained", "Uncommon", "Handy", "Rare", "Pseudo", "Genesis", "Legendary", "Mythical", "Ethereal", "Ascendant", "Primordial", "Omni", "God-Challenger"}
+            VALID_CLASS_RANKS = {"Horrible", "Okay", "Apprentice", "Journeyer", "Elite", "Chief", "Masterclass", "Transcendent"}
 
             if alignment not in VALID_ALIGNMENTS:
                 await message.channel.send(f"Invalid alignment '{alignment}'.")
