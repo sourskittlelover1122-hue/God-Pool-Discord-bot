@@ -144,6 +144,7 @@ ROLL_COUNTER_FILE = Path("user_roll_counts.json")
 EMPORIUM_STATE_FILE = Path("emporium_state.json")
 USER_ITEMS_FILE = Path("user_items.json")
 USER_BOOSTS_FILE = Path("user_boosts.json")
+MAX_HEROES_PER_USER = 150
 
 
 def load_json_data(file_path, filename):
@@ -162,8 +163,12 @@ def load_json_data(file_path, filename):
             return {}
     else:
         if file_path.exists():
-            with open(file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                print(f"Warning: {file_path} contains invalid JSON. Recreating storage for {filename}.")
+                return {}
         return {}
 
 
@@ -177,14 +182,24 @@ def save_json_data(file_path, filename, data):
                 files[filename] = {"content": json.dumps(data, indent=2)}
                 response = requests.patch(GIST_URL, headers=HEADERS, json={"files": files})
                 if response.status_code not in [200, 201]:
-                    print(f"Failed to save {filename} to Gist: {response.status_code}")
+                    raise IOError(f"Failed to save {filename} to Gist: {response.status_code}")
             else:
-                print(f"Failed to fetch Gist for saving {filename}: {response.status_code}")
+                raise IOError(f"Failed to fetch Gist for saving {filename}: {response.status_code}")
         except Exception as e:
-            print(f"Error saving {filename} to Gist: {e}")
+            raise IOError(f"Error saving {filename} to Gist: {e}")
     else:
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        temp_path = file_path.with_suffix(file_path.suffix + ".tmp")
+        try:
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            os.replace(temp_path, file_path)
+        except Exception as e:
+            if temp_path.exists():
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+            raise IOError(f"Failed to save {filename}: {e}")
 
 
 def load_user_heroes():
@@ -204,8 +219,12 @@ def load_user_heroes():
             return {}
     else:
         if HEROES_FILE.exists():
-            with open(HEROES_FILE, "r") as f:
-                return json.load(f)
+            try:
+                with open(HEROES_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                print(f"Warning: {HEROES_FILE} contains invalid JSON. Recreating hero storage.")
+                return {}
         return {}
 
 def save_user_heroes(heroes_data):
@@ -224,14 +243,24 @@ def save_user_heroes(heroes_data):
                 data = {"files": files}
                 response = requests.patch(GIST_URL, headers=HEADERS, json=data)
                 if response.status_code not in [200, 201]:
-                    print(f"Failed to save heroes to Gist: {response.status_code}")
+                    raise IOError(f"Failed to save heroes to Gist: {response.status_code}")
             else:
-                print(f"Failed to fetch Gist for saving: {response.status_code}")
+                raise IOError(f"Failed to fetch Gist for saving: {response.status_code}")
         except Exception as e:
-            print(f"Error saving heroes to Gist: {e}")
+            raise IOError(f"Error saving heroes to Gist: {e}")
     else:
-        with open(HEROES_FILE, "w") as f:
-            json.dump(heroes_data, f, indent=2)
+        temp_path = HEROES_FILE.with_suffix(HEROES_FILE.suffix + ".tmp")
+        try:
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(heroes_data, f, indent=2)
+            os.replace(temp_path, HEROES_FILE)
+        except Exception as e:
+            if temp_path.exists():
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+            raise IOError(f"Failed to save hero data: {e}")
 
 
 def load_user_roll_counts():
@@ -724,9 +753,11 @@ def get_user_heroes(user_id):
     heroes = load_user_heroes()
     return heroes.get(str(user_id), [])
 
-def get_next_hero_id(user_id):
+def get_next_hero_id(user_id, user_heroes=None):
     """Get the next hero ID for a user's collection."""
-    user_heroes = get_user_heroes(user_id)
+    if user_heroes is None:
+        user_heroes = get_user_heroes(user_id)
+
     max_id = 0
     for hero in user_heroes:
         try:
@@ -1566,7 +1597,7 @@ CLASS_TIERS = [
     (1.08, "Elite"),
     (1.13, "Chief"),
     (1.17, "Masterclass"),
-    (1.2, "Transcendent"),
+    (1.2, "Transcendant"),
 ]
 
 
@@ -2741,7 +2772,11 @@ async def on_message(message):
                 "created_at": created_at
             }
             
-            add_hero_to_user(message.author.id, hero_data)
+            try:
+                add_hero_to_user(message.author.id, hero_data)
+            except ValueError as error:
+                await message.channel.send(str(error))
+                return
 
             embed = discord.Embed(title="⚔️ Hero Created ⚔️", color=0x00ffcc)
             embed.add_field(name="Hero", value=final_name, inline=False)
@@ -2797,7 +2832,7 @@ async def on_message(message):
             VALID_ELEMENTS = set(ELEMENTS.keys())
             VALID_CLASSES = {"Warrior", "Archer", "Assassin", "Mage", "Paladin", "Rogue", "Admiral", "Sniper", "Outlaw", "Bard", "Scavenger", "Ritualist", "Commander", "Defender", "Barbarian"}
             VALID_OVR_RANKS = {"Common", "Trained", "Uncommon", "Handy", "Rare", "Pseudo", "Genesis", "Legendary", "Mythical", "Ethereal", "Ascendant", "Primordial", "Omni", "God-Challenger"}
-            VALID_CLASS_RANKS = {"Horrible", "Okay", "Apprentice", "Journeyer", "Elite", "Chief", "Masterclass", "Transcendent"}
+            VALID_CLASS_RANKS = {"Horrible", "Okay", "Apprentice", "Journeyer", "Elite", "Chief", "Masterclass", "Transcendant"}
 
             if alignment not in VALID_ALIGNMENTS:
                 await message.channel.send(f"Invalid alignment '{alignment}'.")
@@ -2856,7 +2891,11 @@ async def on_message(message):
                 "created_at": created_at
             }
 
-            add_hero_to_user(message.author.id, hero_data)
+            try:
+                add_hero_to_user(message.author.id, hero_data)
+            except ValueError as error:
+                await message.channel.send(str(error))
+                return
 
             embed = discord.Embed(title="🔱 Divine Hero Created 🔱", color=0xffd700)
             embed.add_field(name="Hero", value=final_name, inline=False)
