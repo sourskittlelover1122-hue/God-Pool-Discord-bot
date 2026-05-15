@@ -144,7 +144,186 @@ ROLL_COUNTER_FILE = Path("user_roll_counts.json")
 EMPORIUM_STATE_FILE = Path("emporium_state.json")
 USER_ITEMS_FILE = Path("user_items.json")
 USER_BOOSTS_FILE = Path("user_boosts.json")
+NEMESIS_STATE_FILE = Path("nemesis_state.json")
 MAX_HEROES_PER_USER = 150
+NEMESIS_REQUIRED_VICTORIES = 3
+NEMESIS_HUNT_INTERVAL_HOURS = 3
+NEMESIS_HUNT_CHANCE = 0.30
+NEMESIS_ACTIVE_ENCOUNTER_CHANCE = 0.30
+NEMESIS_POTENTIAL_ENCOUNTER_CHANCE = 0.10
+NEMESIS_MINION_REQUIREMENTS = ["Legendary", "Mythical", "Ethereal", "Ascendant"]
+NEMESIS_GUESS_OPTIONS = ["Strike", "Shield"]
+FORCED_ENCOUNTER_TYPE = None
+EVOLUTION_TITLES = {
+    "Fire": {
+        "Warrior": "Flame Vanguard", "Archer": "Ember Ranger", "Assassin": "Cinder Shade", "Mage": "Inferno Sage",
+        "Paladin": "Sunfire Templar", "Rogue": "Ashstep Raider", "Admiral": "Blazewave Captain", "Sniper": "Scorchshot",
+        "Outlaw": "Wildfire Bandit", "Bard": "Balladeer of Embers", "Scavenger": "Coalpicker", "Ritualist": "Pyre Caller",
+        "Commander": "Infernal General", "Defender": "Molten Bulwark", "Barbarian": "Volcano Reaver"
+    },
+    "Water": {
+        "Warrior": "Tidebreaker", "Archer": "Deepcurrent Archer", "Assassin": "Undertow Stalker", "Mage": "Abyssal Channeler",
+        "Paladin": "Tidal Guardian", "Rogue": "Wave Skulker", "Admiral": "Leviathan Admiral", "Sniper": "Harbor Piercer",
+        "Outlaw": "Blackwater Marauder", "Bard": "Siren Minstrel", "Scavenger": "Drift Seeker", "Ritualist": "Ocean Whisperer",
+        "Commander": "Sea Marshal", "Defender": "Coral Bastion", "Barbarian": "Riptide Berserker"
+    },
+    "Earth": {
+        "Warrior": "Stonecrusher", "Archer": "Rootshot Ranger", "Assassin": "Gravellurker", "Mage": "Terra Shaper",
+        "Paladin": "Mountain Sentinel", "Rogue": "Dustwalker", "Admiral": "Canyon Fleetmaster", "Sniper": "Cliffshot",
+        "Outlaw": "Badlands Raider", "Bard": "Echo Drummer", "Scavenger": "Quarry Rat", "Ritualist": "Earthbinder",
+        "Commander": "Ironpeak Warden", "Defender": "Granite Wall", "Barbarian": "Boulderfury"
+    },
+    "Air": {
+        "Warrior": "Gale Knight", "Archer": "Skyfeather Archer", "Assassin": "Wind Veil", "Mage": "Tempest Caller",
+        "Paladin": "Storm Herald", "Rogue": "Breeze Phantom", "Admiral": "Cloudfleet Admiral", "Sniper": "Cyclone Eye",
+        "Outlaw": "Dust Devil", "Bard": "Whisper Singer", "Scavenger": "Drift Chaser", "Ritualist": "Zephyr Monk",
+        "Commander": "Storm Marshal", "Defender": "Skyshield", "Barbarian": "Hurricane Ravager"
+    },
+    "Steel": {
+        "Warrior": "Iron Vanguard", "Archer": "Steelstring Ranger", "Assassin": "Blade Phantom", "Mage": "Alloy Arcanist",
+        "Paladin": "Argent Crusader", "Rogue": "Razorcloak", "Admiral": "Ironfleet Captain", "Sniper": "Railshot",
+        "Outlaw": "Rust Marauder", "Bard": "Forgemelody", "Scavenger": "Scrap Hunter", "Ritualist": "Metal Binder",
+        "Commander": "Warsteel Marshal", "Defender": "Fortress Sentinel", "Barbarian": "Chainbreaker"
+    },
+    "Glass": {
+        "Warrior": "Shard Knight", "Archer": "Prismshot", "Assassin": "Mirror Veil", "Mage": "Crystal Lensmage",
+        "Paladin": "Gleam Protector", "Rogue": "Glass Phantom", "Admiral": "Reflective Corsair", "Sniper": "Diamond Eye",
+        "Outlaw": "Shatterhand", "Bard": "Chime Singer", "Scavenger": "Fragment Seeker", "Ritualist": "Prism Weaver",
+        "Commander": "Crystal Marshal", "Defender": "Mirror Bastion", "Barbarian": "Shardbreaker"
+    },
+    "Light": {
+        "Warrior": "Radiant Knight", "Archer": "Sunpiercer", "Assassin": "Dawnshade", "Mage": "Lumen Sage",
+        "Paladin": "Holy Crusader", "Rogue": "Gleamstep", "Admiral": "Solar Admiral", "Sniper": "Beacon Eye",
+        "Outlaw": "Goldflare Rogue", "Bard": "Choir of Dawn", "Scavenger": "Halo Hunter", "Ritualist": "Lightbearer",
+        "Commander": "Dawn Marshal", "Defender": "Aegis of Light", "Barbarian": "Sunfury"
+    },
+    "Dark": {
+        "Warrior": "Dread Knight", "Archer": "Nightpiercer", "Assassin": "Void Fang", "Mage": "Umbra Weaver",
+        "Paladin": "Eclipse Templar", "Rogue": "Shade Runner", "Admiral": "Blackwake Admiral", "Sniper": "Moonshot Stalker",
+        "Outlaw": "Grave Bandit", "Bard": "Dirge Singer", "Scavenger": "Hollow Picker", "Ritualist": "Shadowbinder",
+        "Commander": "Abyss Marshal", "Defender": "Nightwall", "Barbarian": "Doomreaver"
+    },
+    "Equinox": {
+        "Warrior": "Balance Knight", "Archer": "Horizon Archer", "Assassin": "Twilight Veil", "Mage": "Equilibrium Sage",
+        "Paladin": "Zenith Guardian", "Rogue": "Duskstep", "Admiral": "Meridian Captain", "Sniper": "Eclipse Eye",
+        "Outlaw": "Halfmoon Raider", "Bard": "Twilight Harpist", "Scavenger": "Balance Seeker", "Ritualist": "Equinox Caller",
+        "Commander": "Duality Marshal", "Defender": "Axis Bastion", "Barbarian": "Twilight Ravager"
+    },
+    "Celestial": {
+        "Warrior": "Starforged Knight", "Archer": "Comet Ranger", "Assassin": "Nebula Phantom", "Mage": "Astral Oracle",
+        "Paladin": "Cosmic Crusader", "Rogue": "Meteor Stepper", "Admiral": "Galaxy Admiral", "Sniper": "Starshot",
+        "Outlaw": "Void Corsair", "Bard": "Constellation Singer", "Scavenger": "Stardust Hunter", "Ritualist": "Celestial Seer",
+        "Commander": "Astral Marshal", "Defender": "Nebula Bastion", "Barbarian": "Supernova Reaver"
+    },
+    "Beast": {
+        "Warrior": "Fang Warrior", "Archer": "Huntcaller", "Assassin": "Predator Shade", "Mage": "Wildspeaker",
+        "Paladin": "Alpha Guardian", "Rogue": "Clawstepper", "Admiral": "Leviabeast Captain", "Sniper": "Talon Eye",
+        "Outlaw": "Savage Raider", "Bard": "Howl Singer", "Scavenger": "Carrion Hunter", "Ritualist": "Beastbinder",
+        "Commander": "Pack Leader", "Defender": "Ironhide Sentinel", "Barbarian": "Apex Berserker"
+    },
+    "Lightning": {
+        "Warrior": "Thunderblade", "Archer": "Stormshot", "Assassin": "Flash Fang", "Mage": "Volt Caller",
+        "Paladin": "Tempest Templar", "Rogue": "Static Runner", "Admiral": "Thunderfleet Admiral", "Sniper": "Railstorm Eye",
+        "Outlaw": "Shock Raider", "Bard": "Pulse Drummer", "Scavenger": "Sparkpicker", "Ritualist": "Storm Conduit",
+        "Commander": "Thunder Marshal", "Defender": "Volt Bastion", "Barbarian": "Skybreaker"
+    },
+    "Magma": {
+        "Warrior": "Magma Crusher", "Archer": "Emberbolt Ranger", "Assassin": "Lava Shade", "Mage": "Volcano Caller",
+        "Paladin": "Infernal Warden", "Rogue": "Ash Runner", "Admiral": "Molten Admiral", "Sniper": "Furnace Eye",
+        "Outlaw": "Crater Marauder", "Bard": "Lava Chanter", "Scavenger": "Cinderscraper", "Ritualist": "Molten Binder",
+        "Commander": "Eruption Marshal", "Defender": "Basalt Fortress", "Barbarian": "Lavafury"
+    },
+    "Spore": {
+        "Warrior": "Rotblade", "Archer": "Fungus Ranger", "Assassin": "Mold Stalker", "Mage": "Bloomcaller",
+        "Paladin": "Verdant Saint", "Rogue": "Sporeveil", "Admiral": "Rotwater Captain", "Sniper": "Toxin Eye",
+        "Outlaw": "Plague Drifter", "Bard": "Bloom Singer", "Scavenger": "Decay Gatherer", "Ritualist": "Mushroom Shaman",
+        "Commander": "Rot Marshal", "Defender": "Fungus Bastion", "Barbarian": "Blight Berserker"
+    },
+    "Crystal": {
+        "Warrior": "Crystal Knight", "Archer": "Gemshot", "Assassin": "Prism Fang", "Mage": "Crystal Sage",
+        "Paladin": "Diamond Guardian", "Rogue": "Facet Runner", "Admiral": "Sapphire Admiral", "Sniper": "Quartz Eye",
+        "Outlaw": "Gem Raider", "Bard": "Resonance Singer", "Scavenger": "Geode Hunter", "Ritualist": "Crystal Seer",
+        "Commander": "Prism Marshal", "Defender": "Diamond Bastion", "Barbarian": "Shattermaul"
+    },
+    "Color": {
+        "Warrior": "Spectrum Knight", "Archer": "Rainbow Piercer", "Assassin": "Hue Phantom", "Mage": "Chromatic Weaver",
+        "Paladin": "Prism Guardian", "Rogue": "Paintshadow", "Admiral": "Aurora Captain", "Sniper": "Vivid Eye",
+        "Outlaw": "Graffiti Raider", "Bard": "Color Chorus", "Scavenger": "Pigment Seeker", "Ritualist": "Spectrum Caller",
+        "Commander": "Rainbow Marshal", "Defender": "Chromatic Wall", "Barbarian": "Neon Fury"
+    },
+    "Plants": {
+        "Warrior": "Thorn Knight", "Archer": "Vine Ranger", "Assassin": "Rootlurker", "Mage": "Verdant Druid",
+        "Paladin": "Grove Sentinel", "Rogue": "Leafstepper", "Admiral": "Greenwater Captain", "Sniper": "Thornshot",
+        "Outlaw": "Briar Bandit", "Bard": "Forest Minstrel", "Scavenger": "Seed Gatherer", "Ritualist": "Bloom Ritualist",
+        "Commander": "Wildwood Marshal", "Defender": "Barkshield", "Barbarian": "Vine Berserker"
+    },
+    "Poison": {
+        "Warrior": "Venom Knight", "Archer": "Toxic Ranger", "Assassin": "Fangshade", "Mage": "Plague Weaver",
+        "Paladin": "Toxic Templar", "Rogue": "Venomstep", "Admiral": "Blackwater Venomlord", "Sniper": "Serpent Eye",
+        "Outlaw": "Toxin Marauder", "Bard": "Venom Balladeer", "Scavenger": "Rotpicker", "Ritualist": "Poison Hexer",
+        "Commander": "Blight Marshal", "Defender": "Toxic Bastion", "Barbarian": "Acid Reaver"
+    },
+    "Corruption": {
+        "Warrior": "Corrupt Vanguard", "Archer": "Voidbow Hunter", "Assassin": "Abyss Stalker", "Mage": "Ruin Weaver",
+        "Paladin": "Fallen Crusader", "Rogue": "Riftstepper", "Admiral": "Black Rift Admiral", "Sniper": "Corrupt Eye",
+        "Outlaw": "Rotblood Raider", "Bard": "Dirge Whisperer", "Scavenger": "Void Picker", "Ritualist": "Corruption Caller",
+        "Commander": "Ruin Marshal", "Defender": "Hollow Bastion", "Barbarian": "Doom Berserker"
+    },
+    "Mist": {
+        "Warrior": "Fogblade", "Archer": "Mist Ranger", "Assassin": "Vapor Phantom", "Mage": "Haze Weaver",
+        "Paladin": "Veil Guardian", "Rogue": "Fogstepper", "Admiral": "Mistwake Admiral", "Sniper": "Silent Eye",
+        "Outlaw": "Gray Wanderer", "Bard": "Whisper Bard", "Scavenger": "Drift Picker", "Ritualist": "Mistcaller",
+        "Commander": "Veil Marshal", "Defender": "Silent Bastion", "Barbarian": "Fog Reaver"
+    },
+    "Death": {
+        "Warrior": "Grave Knight", "Archer": "Bonepiercer", "Assassin": "Soulreaper", "Mage": "Necro Sage",
+        "Paladin": "Deathwarden", "Rogue": "Gravewalker", "Admiral": "Dreadfleet Admiral", "Sniper": "Skull Eye",
+        "Outlaw": "Tomb Raider", "Bard": "Funeral Singer", "Scavenger": "Corpse Gatherer", "Ritualist": "Soul Binder",
+        "Commander": "Death Marshal", "Defender": "Crypt Bastion", "Barbarian": "Bonecrusher"
+    },
+    "Life": {
+        "Warrior": "Lifeblade", "Archer": "Bloom Ranger", "Assassin": "Spirit Walker", "Mage": "Vital Sage",
+        "Paladin": "Guardian Saint", "Rogue": "Greenstepper", "Admiral": "Lifetide Captain", "Sniper": "Heartshot",
+        "Outlaw": "Wild Healer", "Bard": "Harmony Singer", "Scavenger": "Herb Gatherer", "Ritualist": "Spirit Caller",
+        "Commander": "Dawn Marshal", "Defender": "Living Bastion", "Barbarian": "Wildblood Berserker"
+    },
+    "Ice": {
+        "Warrior": "Frost Knight", "Archer": "Glacier Archer", "Assassin": "Snowshade", "Mage": "Cryo Sage",
+        "Paladin": "Winter Guardian", "Rogue": "Ice Veil", "Admiral": "Frostwave Admiral", "Sniper": "Icicle Eye",
+        "Outlaw": "Tundra Raider", "Bard": "Frost Chanter", "Scavenger": "Icepicker", "Ritualist": "Blizzard Caller",
+        "Commander": "Winter Marshal", "Defender": "Glacier Wall", "Barbarian": "Frostfang Berserker"
+    },
+    "Rain": {
+        "Warrior": "Stormblade", "Archer": "Rainpiercer", "Assassin": "Downpour Phantom", "Mage": "Tempest Sage",
+        "Paladin": "Rain Guardian", "Rogue": "Drizzle Runner", "Admiral": "Monsoon Admiral", "Sniper": "Storm Eye",
+        "Outlaw": "Flood Raider", "Bard": "Thunder Minstrel", "Scavenger": "Rain Gatherer", "Ritualist": "Stormcaller",
+        "Commander": "Tempest Marshal", "Defender": "Monsoon Bastion", "Barbarian": "Flood Berserker"
+    },
+    "Lava": {
+        "Warrior": "Lava Knight", "Archer": "Magmashot", "Assassin": "Crater Shade", "Mage": "Lava Weaver",
+        "Paladin": "Molten Guardian", "Rogue": "Emberstepper", "Admiral": "Volcano Admiral", "Sniper": "Ashen Eye",
+        "Outlaw": "Inferno Raider", "Bard": "Ember Singer", "Scavenger": "Lava Scraper", "Ritualist": "Volcano Caller",
+        "Commander": "Lava Marshal", "Defender": "Obsidian Wall", "Barbarian": "Inferno Berserker"
+    },
+    "Blood": {
+        "Warrior": "Blood Knight", "Archer": "Crimson Archer", "Assassin": "Hemoshade", "Mage": "Bloodweaver",
+        "Paladin": "Scarlet Guardian", "Rogue": "Veinrunner", "Admiral": "Crimson Admiral", "Sniper": "Blood Eye",
+        "Outlaw": "Red Marauder", "Bard": "Heartbeat Singer", "Scavenger": "Flesh Gatherer", "Ritualist": "Blood Ritualist",
+        "Commander": "Crimson Marshal", "Defender": "Scarlet Bastion", "Barbarian": "Gore Berserker"
+    },
+    "Desert": {
+        "Warrior": "Dune Knight", "Archer": "Sandshot Ranger", "Assassin": "Mirage Phantom", "Mage": "Sand Weaver",
+        "Paladin": "Sun Dervish", "Rogue": "Dustrunner", "Admiral": "Oasis Admiral", "Sniper": "Mirage Eye",
+        "Outlaw": "Wasteland Raider", "Bard": "Desert Songcaller", "Scavenger": "Scrap Nomad", "Ritualist": "Sandcaller",
+        "Commander": "Dune Marshal", "Defender": "Sand Bastion", "Barbarian": "Scorpion Berserker"
+    },
+    "Arcane": {
+        "Warrior": "Arcblade Knight", "Archer": "Mystic Ranger", "Assassin": "Rune Phantom", "Mage": "Archsage",
+        "Paladin": "Arcane Templar", "Rogue": "Spellstepper", "Admiral": "Ether Admiral", "Sniper": "Rune Eye",
+        "Outlaw": "Hex Raider", "Bard": "Arcane Minstrel", "Scavenger": "Relic Hunter", "Ritualist": "Rune Binder",
+        "Commander": "Mystic Marshal", "Defender": "Arcane Bastion", "Barbarian": "Spellfury Berserker"
+    }
+}
 
 
 def load_json_data(file_path, filename):
@@ -306,6 +485,129 @@ def load_user_boosts():
 
 def save_user_boosts(boosts):
     save_json_data(USER_BOOSTS_FILE, 'user_boosts.json', boosts)
+
+
+def load_nemesis_state():
+    state = load_json_data(NEMESIS_STATE_FILE, 'nemesis_state.json')
+    if not state:
+        return {"active": {}}
+    if "active" not in state:
+        state["active"] = {}
+    return state
+
+
+def save_nemesis_state(state):
+    save_json_data(NEMESIS_STATE_FILE, 'nemesis_state.json', state)
+
+
+def get_user_nemesis(user_id):
+    state = load_nemesis_state()
+    return state.get("active", {}).get(str(user_id))
+
+
+def set_user_nemesis(user_id, nemesis_data):
+    state = load_nemesis_state()
+    state.setdefault("active", {})[str(user_id)] = nemesis_data
+    save_nemesis_state(state)
+
+
+def remove_user_nemesis(user_id):
+    state = load_nemesis_state()
+    if str(user_id) in state.get("active", {}):
+        del state["active"][str(user_id)]
+        save_nemesis_state(state)
+
+
+def has_active_nemesis(user_id):
+    return get_user_nemesis(user_id) is not None
+
+
+def add_nemesis_victory(user_id):
+    nemesis = get_user_nemesis(user_id)
+    if not nemesis:
+        return None
+    nemesis["victories"] = nemesis.get("victories", 0) + 1
+    if nemesis["victories"] >= NEMESIS_REQUIRED_VICTORIES:
+        nemesis["defeated"] = True
+        nemesis["pending_finish"] = True
+        nemesis["defeated_at"] = datetime.datetime.utcnow().isoformat()
+    set_user_nemesis(user_id, nemesis)
+    return nemesis
+
+
+def get_nemesis_debuff(user_id):
+    nemesis = get_user_nemesis(user_id)
+    if not nemesis:
+        return None
+    debuff = nemesis.get("hide_debuff")
+    if not debuff:
+        return None
+    try:
+        expires_at = datetime.datetime.fromisoformat(debuff.get("expires_at"))
+    except Exception:
+        return None
+    if datetime.datetime.utcnow() >= expires_at:
+        nemesis.pop("hide_debuff", None)
+        set_user_nemesis(user_id, nemesis)
+        return None
+    return debuff
+
+
+def choose_nemesis_rarity():
+    pool = [tier[1] for tier in RARITY_TIERS]
+    weights = [40, 25, 15, 8, 5, 3, 2, 1, 1, 1, 0.7, 0.3, 0.2, 0.1]
+    return random.choices(pool, weights=weights, k=1)[0]
+
+
+def choose_nemesis_class_title():
+    pool = [title for _, title in CLASS_TIERS]
+    weights = [15, 25, 20, 15, 10, 8, 5, 2]
+    return random.choices(pool, weights=weights, k=1)[0]
+
+
+def increase_rarity_by_steps(rarity, steps):
+    order = [name for _, name in RARITY_TIERS]
+    if rarity not in order:
+        return rarity
+    idx = order.index(rarity)
+    new_index = min(idx + steps, len(order) - 1)
+    return order[new_index]
+
+
+def generate_nemesis_hero():
+    alignment = random.choice(list(ALIGNMENT_TITLE_MAP.keys()))
+    divinity = random.choice(list(DIVINITY_TITLE_MAP.keys()))
+    race = random.choice([
+        "Human", "Construct", "Elven", "Goblin", "Beast", "Ogre", "Deep-Crawler",
+        "Celestial", "Angel", "Demon", "Dwarf", "Elemental", "Undead", "Magma-Crawler"
+    ])
+    element = random.choice(list(ELEMENTS.keys()))
+    clazz = random.choice(CLASSES)
+    rarity = choose_nemesis_rarity()
+    class_title = choose_nemesis_class_title()
+    name = random_name()
+    feat = roll_feat(rarity)
+    element_good, element_bad = ELEMENTS[element]
+    element_part = f" the {element_good}" if random.random() < 0.65 else ""
+    element_title = element_good if element_part else element
+    full_name = f"{class_title} {clazz} {name}{element_part} - ({rarity})"
+
+    return {
+        "full_name": full_name,
+        "hero_name": name,
+        "class": clazz,
+        "class_title": class_title,
+        "rarity": rarity,
+        "divinity": divinity,
+        "alignment": alignment,
+        "race": race,
+        "element": element_title,
+        "element_raw": element,
+        "element_part": element_part,
+        "feat": feat,
+        "shiny": False,
+        "created_at": datetime.datetime.utcnow().isoformat(),
+    }
 
 
 # =========================
@@ -565,6 +867,14 @@ def build_ra_encounter_embed(encounter):
     if encounter.get("sought_out"):
         embed.add_field(name="Sought Out By", value=encounter.get("sought_out_person", "Unknown"), inline=True)
         embed.add_field(name="Sought Hero", value=f"#{encounter.get('target_hero_id')} — {encounter.get('target_hero_name', 'Unknown')}", inline=True)
+    if encounter.get("special_type") == "potential_nemesis":
+        nemesis_hero = encounter.get("nemesis_hero", {})
+        embed.add_field(name="Potential Nemesis", value=nemesis_hero.get("full_name", "Unknown"), inline=False)
+        embed.add_field(name="Choice", value="After facing the menace, use `!SpareGP` to spare it or `!KillGP` to slay it.", inline=False)
+    if encounter.get("special_type") == "nemesis_challenge":
+        embed.add_field(name="Nemesis Trial", value="A reflex test begins. Use `Strike` or `Shield` when prompted.", inline=False)
+    if encounter.get("special_type") == "nemesis_minion":
+        embed.add_field(name="Nemesis Minion", value="Only a high-ranked hero can defeat this servant of your Nemesis.", inline=False)
     embed.set_footer(text=f"Use !FaceRA {encounter['id']} <Hero ID> to attempt the encounter.")
     return embed
 
@@ -687,6 +997,7 @@ def get_reward_items_for_rank(rank):
         return [
             {"name": "Enchanted Luck Stone", "type": "luck", "description": "Good overall rank luck boost on your next roll.", "multiplier": 1.30},
             {"name": "Elite Training Order", "type": "class", "description": "Good class rank luck boost on your next roll.", "multiplier": 1.30},
+            {"name": "Evolution Stone", "type": "evolution", "description": "A mystical stone that can evolve a hero's title based on their element and class.", "multiplier": 1.0},
         ]
     if rank == "Rare":
         return [
@@ -702,14 +1013,17 @@ RA_REWARD_POOLS = {
     "Easy": [
         {"name": "Weak Luck Stone", "type": "luck", "description": "Teensy overall luck boost from an easy victory.", "multiplier": 1.10},
         {"name": "Weak Training Order", "type": "class", "description": "Teensy class training boost from an easy victory.", "multiplier": 1.10},
+        {"name": "Evolution Stone", "type": "evolution", "description": "A mystical stone that can evolve a hero's title based on their element and class.", "multiplier": 1.0},
     ],
     "Normal": [
         {"name": "Natural Luck Stone", "type": "luck", "description": "Balanced overall luck boost from a solid victory.", "multiplier": 1.20},
         {"name": "Normal Training Order", "type": "class", "description": "Balanced class training boost from a solid victory.", "multiplier": 1.20},
+        {"name": "Evolution Stone", "type": "evolution", "description": "A mystical stone that can evolve a hero's title based on their element and class.", "multiplier": 1.0},
     ],
     "Challenging": [
         {"name": "Enchanted Luck Stone", "type": "luck", "description": "Strong overall luck boost from a hard-fought victory.", "multiplier": 1.30},
         {"name": "Elite Training Order", "type": "class", "description": "Strong class training boost from a hard-fought victory.", "multiplier": 1.30},
+        {"name": "Evolution Stone", "type": "evolution", "description": "A mystical stone that can evolve a hero's title based on their element and class.", "multiplier": 1.0},
     ],
 }
 
@@ -978,6 +1292,51 @@ async def event_countdown_updater():
             continue
         except Exception as e:
             print(f"Failed to update event countdown for guild {guild.name}: {e}")
+
+
+@tasks.loop(minutes=10)
+async def nemesis_hunt_scheduler():
+    state = load_nemesis_state()
+    now = datetime.datetime.utcnow()
+    active_nemeses = state.get("active", {})
+    any_changed = False
+    for user_id_str, nemesis in active_nemeses.items():
+        if nemesis.get("pending_finish"):
+            continue
+        if nemesis.get("pending_hunt"):
+            continue
+        next_hunt = nemesis.get("next_hunt_at")
+        if next_hunt:
+            try:
+                next_hunt_time = datetime.datetime.fromisoformat(next_hunt)
+            except Exception:
+                next_hunt_time = now
+        else:
+            next_hunt_time = now
+
+        if now < next_hunt_time:
+            continue
+
+        nemesis["next_hunt_at"] = (now + datetime.timedelta(hours=NEMESIS_HUNT_INTERVAL_HOURS)).isoformat()
+        if random.random() < NEMESIS_HUNT_CHANCE:
+            nemesis["pending_hunt"] = {
+                "status": "waiting_choice",
+                "created_at": now.isoformat(),
+            }
+            any_changed = True
+            user = await bot.fetch_user(int(user_id_str))
+            if user:
+                hero_name = nemesis.get("spawned_by_hero_name", "your hero")
+                try:
+                    await user.send(
+                        f"🖤 **{nemesis['hero'].get('full_name', 'The Nemesis')}** is hunting for **{hero_name}**.\n"
+                        "Use `!HideGP` to hide or `!ConfrontGP` to confront the Nemesis hunt."
+                    )
+                except Exception:
+                    pass
+
+    if any_changed:
+        save_nemesis_state(state)
 
 
 def is_event_active(state):
@@ -1978,6 +2337,8 @@ async def on_ready():
         event_scheduler.start()
     if not event_countdown_updater.is_running():
         event_countdown_updater.start()
+    if not nemesis_hunt_scheduler.is_running():
+        nemesis_hunt_scheduler.start()
 
 
 @tasks.loop(minutes=1)
@@ -2087,11 +2448,17 @@ async def godpool_cmds(ctx):
         "`!AE` — View the current Adventures Exchange requirement and reward.\n"
         "`!TradeHeroGodPool <id>` — Trade a hero to the Adventures Exchange for a reward.\n"
         "`!CheckInvGP` — View your current Adventures Exchange inventory items.\n"
-        "`!ConsumeGP <itemid>` — Consume a reward item to boost your next hero roll.\n"
+        "`!ConsumeGP <itemid> [hero_id]` — Consume a reward item to boost your next hero roll, or evolve a hero's title with Evolution Stone.\n"
         "`!RAGodPool <Easy|Normal|Challenging>` — Start a random encounter and receive an encounter ID.\n"
         "`!FaceRA <Encounter ID> <Hero ID>` — Attempt the active random encounter with a hero.\n"
         "`!SearchHeroGP <Encounter ID>` — Find which of your heroes can face the active encounter.\n"
         "`!CancelRA <Encounter ID>` — Cancel your active random encounter.\n"
+        "`!SpareGP` — Spare a potential Nemesis after a Nemesis encounter.\n"
+        "`!KillGP` — Slay a potential Nemesis or finish a defeated Nemesis.\n"
+        "`!NemisisGP` — View your current active Nemesis status.\n"
+        "`!HideGP` — Hide from a Nemesis hunt and gain a temporary hero-making debuff.\n"
+        "`!ConfrontGP` — Confront a Nemesis hunt with a longer Strike/Shield game.\n"
+        "`!RecruitGP` — Recruit a defeated Nemesis into your hero collection.\n"
         "`!HeroSpeakGD <Hero ID> <message>` — Have a hero say a custom message.\n"
         "`!GodPoolCmds` — Show this command list.\n"
     )
@@ -2100,6 +2467,7 @@ async def godpool_cmds(ctx):
 
 @bot.command(name="RAGodPool")
 async def random_encounter(ctx, difficulty: str):
+    global FORCED_ENCOUNTER_TYPE
     difficulty_clean = difficulty.capitalize()
     if difficulty_clean not in DIFFICULTY_POOLS:
         await ctx.send("Invalid difficulty. Choose one of: Easy, Normal, Challenging.")
@@ -2118,6 +2486,7 @@ async def random_encounter(ctx, difficulty: str):
     enemy = choose_ra_enemy(difficulty_clean)
     requirements = choose_ra_requirements()
     required_rarity = choose_ra_required_rarity(difficulty_clean)
+    nemesis = get_user_nemesis(ctx.author.id)
     encounter_id = get_next_ra_encounter_id(state)
 
     encounter = {
@@ -2129,7 +2498,42 @@ async def random_encounter(ctx, difficulty: str):
         "created_at": datetime.datetime.utcnow().isoformat(),
     }
 
-    if random.random() < 0.10:
+    # Check for forced encounter type
+    forced_type = FORCED_ENCOUNTER_TYPE
+    FORCED_ENCOUNTER_TYPE = None  # Reset after use
+
+    if forced_type == "N":
+        # Force Nemesis encounter
+        if nemesis:
+            if random.random() < 0.5:
+                encounter["special_type"] = "nemesis_challenge"
+                encounter["title"] = f"A whisper in the dark: {nemesis['hero_name']} tests your instincts."
+                encounter["requirements"] = []
+                encounter["required_rarity"] = "Common"
+                encounter["challenge"] = {
+                    "prompt": "Strike or Shield?",
+                    "remaining_guesses": 3,
+                    "correct_needed": 1,
+                    "correct_guesses": 0,
+                    "attempts": 0,
+                    "pending": True,
+                    "last_feedback": None,
+                }
+            else:
+                minion_rarity = random.choice(NEMESIS_MINION_REQUIREMENTS)
+                encounter["special_type"] = "nemesis_minion"
+                encounter["title"] = f"A dark minion of {nemesis['hero_name']} blocks your way."
+                encounter["requirements"] = []
+                encounter["required_rarity"] = minion_rarity
+        else:
+            encounter["special_type"] = "potential_nemesis"
+            nemesis_hero = generate_nemesis_hero()
+            encounter["nemesis_hero"] = nemesis_hero
+            encounter["title"] = f"A Potential Nemesis emerges: {nemesis_hero['full_name']}"
+            encounter["requirements"] = []
+            encounter["required_rarity"] = "Common"
+    elif forced_type == "SO":
+        # Force Sought Out encounter
         user_heroes = load_user_heroes().get(user_id_str, [])
         if user_heroes:
             sought_hero = random.choice(user_heroes)
@@ -2143,8 +2547,55 @@ async def random_encounter(ctx, difficulty: str):
             encounter["title"] = f"{sought_person} sought out {encounter['target_hero_name']} to face {enemy}"
         else:
             encounter["title"] = get_ra_requirement_title(requirements, enemy)
-    else:
+    elif forced_type == "R":
+        # Force Regular encounter
         encounter["title"] = get_ra_requirement_title(requirements, enemy)
+    else:
+        # Normal random logic
+        if nemesis and random.random() < NEMESIS_ACTIVE_ENCOUNTER_CHANCE:
+            if random.random() < 0.5:
+                encounter["special_type"] = "nemesis_challenge"
+                encounter["title"] = f"A whisper in the dark: {nemesis['hero_name']} tests your instincts."
+                encounter["requirements"] = []
+                encounter["required_rarity"] = "Common"
+                encounter["challenge"] = {
+                    "prompt": "Strike or Shield?",
+                    "remaining_guesses": 3,
+                    "correct_needed": 1,
+                    "correct_guesses": 0,
+                    "attempts": 0,
+                    "pending": True,
+                    "last_feedback": None,
+                }
+            else:
+                minion_rarity = random.choice(NEMESIS_MINION_REQUIREMENTS)
+                encounter["special_type"] = "nemesis_minion"
+                encounter["title"] = f"A dark minion of {nemesis['hero_name']} blocks your way."
+                encounter["requirements"] = []
+                encounter["required_rarity"] = minion_rarity
+        elif not nemesis and random.random() < NEMESIS_POTENTIAL_ENCOUNTER_CHANCE:
+            encounter["special_type"] = "potential_nemesis"
+            nemesis_hero = generate_nemesis_hero()
+            encounter["nemesis_hero"] = nemesis_hero
+            encounter["title"] = f"A Potential Nemesis emerges: {nemesis_hero['full_name']}"
+            encounter["requirements"] = []
+            encounter["required_rarity"] = "Common"
+        elif random.random() < 0.10:
+            user_heroes = load_user_heroes().get(user_id_str, [])
+            if user_heroes:
+                sought_hero = random.choice(user_heroes)
+                sought_person = random.choice(FIRST_NAMES)
+                encounter["sought_out"] = True
+                encounter["sought_out_person"] = sought_person
+                encounter["target_hero_id"] = sought_hero.get("id")
+                encounter["target_hero_name"] = sought_hero.get("hero_name", sought_hero.get("full_name", "Unknown"))
+                encounter["requirements"] = []
+                encounter["required_rarity"] = "Common"
+                encounter["title"] = f"{sought_person} sought out {encounter['target_hero_name']} to face {enemy}"
+            else:
+                encounter["title"] = get_ra_requirement_title(requirements, enemy)
+        else:
+            encounter["title"] = get_ra_requirement_title(requirements, enemy)
 
     active[user_id_str] = encounter
     state["active"] = active
@@ -2179,6 +2630,50 @@ async def face_ra(ctx, encounter_id: int, hero_id: int):
         )
         return
 
+    if encounter.get("special_type") == "potential_nemesis":
+        if encounter.get("pending_choice"):
+            await ctx.send("The Potential Nemesis is already waiting. Use `!SpareGP` to spare it or `!KillGP` to slay it.")
+            return
+
+        encounter["pending_choice"] = True
+        encounter["facing_hero_id"] = hero_id
+        active[str(ctx.author.id)] = encounter
+        state["active"] = active
+        save_ra_encounter_state(state)
+
+        nemesis_hero = encounter.get("nemesis_hero", {})
+        embed = discord.Embed(title="🔥 Potential Nemesis Encounter", color=0xff5500)
+        embed.add_field(name="Your Hero", value=f"#{hero_id} {hero.get('full_name', 'Unknown')}", inline=False)
+        embed.add_field(name="Potential Nemesis", value=nemesis_hero.get("full_name", "Unknown"), inline=False)
+        embed.add_field(name="Choice", value="Spare the Nemesis with `!SpareGP` or kill it with `!KillGP`.", inline=False)
+        await ctx.send(embed=embed)
+        return
+
+    if encounter.get("special_type") == "nemesis_challenge":
+        challenge = encounter.get("challenge", {})
+        if challenge.get("pending"):
+            if challenge.get("attempts", 0) > 0:
+                await ctx.send("The Nemesis challenge is already underway. Answer with `Strike` or `Shield`.")
+                return
+
+            challenge["hero_id"] = hero_id
+            challenge["pending"] = True
+            encounter["challenge"] = challenge
+            active[str(ctx.author.id)] = encounter
+            state["active"] = active
+            save_ra_encounter_state(state)
+
+            nemesis = get_user_nemesis(ctx.author.id)
+            nemesis_name = nemesis.get("full_name", "The Nemesis") if nemesis else "The Nemesis"
+            embed = discord.Embed(title="🔮 Nemesis Duel Begins", color=0x9933ff)
+            embed.add_field(name="Your Hero", value=f"#{hero_id} {hero.get('full_name', 'Unknown')}", inline=False)
+            embed.add_field(name="Nemesis", value=nemesis_name, inline=False)
+            embed.add_field(name="Prompt", value=challenge.get("prompt", "Strike or Shield?"), inline=False)
+            embed.add_field(name="Guesses Remaining", value=str(challenge.get("remaining_guesses", 3)), inline=False)
+            embed.set_footer(text="Reply with Strike or Shield to resolve the challenge.")
+            await ctx.send(embed=embed)
+            return
+
     reward_item = try_grant_ra_reward(ctx.author.id, encounter["difficulty"])
     upgrade_amount = get_ra_upgrade_chance(hero.get("rarity", "Common"), encounter.get("required_rarity", "Common"), encounter["difficulty"])
     upgrade_type = random.choice(["class", "rarity"])
@@ -2195,9 +2690,16 @@ async def face_ra(ctx, encounter_id: int, hero_id: int):
             if upgraded:
                 bonus_text = f"Your hero's rarity has improved to **{hero['rarity']}**!"
 
+    if encounter.get("special_type") == "nemesis_minion":
+        nemesis_data = add_nemesis_victory(ctx.author.id)
+        if nemesis_data and nemesis_data.get("pending_finish"):
+            bonus_text += "\nThe Nemesis is weakened. Use `!KillGP` or `!RecruitGP` to finish them."
+
     heroes[str(ctx.author.id)] = user_heroes
     save_user_heroes(heroes)
-    remove_user_ra_encounter(state, ctx.author.id)
+
+    if encounter.get("special_type") != "nemesis_challenge":
+        remove_user_ra_encounter(state, ctx.author.id)
 
     embed = discord.Embed(title="✅ Random Encounter Victory", color=0x00ffcc)
     embed.add_field(name="Hero", value=f"#{hero_id} {hero.get('full_name', 'Unknown')}", inline=False)
@@ -2267,6 +2769,168 @@ async def cancel_ra(ctx, encounter_id: int):
     embed.add_field(name="Title", value=encounter["title"], inline=False)
     embed.set_footer(text="You may start a new random encounter with !RAGodPool.")
     await ctx.send(embed=embed)
+
+
+@bot.command(name="SpareGP")
+async def spare_gp(ctx):
+    state = load_ra_encounter_state()
+    encounter = state.get("active", {}).get(str(ctx.author.id))
+    if not encounter or encounter.get("special_type") != "potential_nemesis":
+        await ctx.send("No potential Nemesis encounter is waiting for you to spare.")
+        return
+    if has_active_nemesis(ctx.author.id):
+        await ctx.send("You already have an active Nemesis. Finish your current Nemesis before sparing another.")
+        return
+
+    nemesis_hero = encounter.get("nemesis_hero", {})
+    faced_hero = None
+    if encounter.get("facing_hero_id"):
+        faced_hero = next((h for h in get_user_heroes(ctx.author.id) if h.get("id") == encounter.get("facing_hero_id")), None)
+    started_at = datetime.datetime.utcnow().isoformat()
+    nemesis_data = {
+        "hero": nemesis_hero,
+        "spawned_by_hero_id": encounter.get("facing_hero_id"),
+        "spawned_by_hero_name": faced_hero.get("hero_name", faced_hero.get("full_name", "Your hero")) if faced_hero else "Your hero",
+        "victories": 0,
+        "defeated": False,
+        "pending_finish": False,
+        "started_at": started_at,
+        "next_hunt_at": (datetime.datetime.utcnow() + datetime.timedelta(hours=NEMESIS_HUNT_INTERVAL_HOURS)).isoformat(),
+        "hide_debuff": None,
+        "pending_hunt": None,
+    }
+    set_user_nemesis(ctx.author.id, nemesis_data)
+    remove_user_ra_encounter(state, ctx.author.id)
+
+    embed = discord.Embed(title="🛡️ Nemesis Spared", color=0x8b0000)
+    embed.add_field(name="Your Choice", value="You spared the foe and it now stalks your path.", inline=False)
+    embed.add_field(name="Nemesis", value=nemesis_hero.get("full_name", "Unknown"), inline=False)
+    embed.add_field(name="Fate", value="The Nemesis has been spared. New Nemesis encounters may appear in future adventures.", inline=False)
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="KillGP")
+async def kill_gp(ctx):
+    state = load_ra_encounter_state()
+    encounter = state.get("active", {}).get(str(ctx.author.id))
+    if encounter and encounter.get("special_type") == "potential_nemesis" and encounter.get("pending_choice"):
+        item = random.choice(get_reward_items_for_rank(encounter["nemesis_hero"].get("rarity", "Common")))
+        add_item_to_user(ctx.author.id, {
+            "name": item["name"],
+            "type": item["type"],
+            "description": item["description"],
+            "multiplier": item.get("multiplier", 1.0),
+            "created_at": datetime.datetime.utcnow().isoformat(),
+        })
+        remove_user_ra_encounter(state, ctx.author.id)
+        await ctx.send(f"You struck down the potential Nemesis and claimed **{item['name']}** as your guaranteed reward.")
+        return
+
+    nemesis = get_user_nemesis(ctx.author.id)
+    if not nemesis or not nemesis.get("pending_finish"):
+        await ctx.send("You have no defeated Nemesis waiting to be finished.")
+        return
+
+    hero = nemesis.get("hero", {})
+    hero["rarity"] = increase_rarity_by_steps(hero.get("rarity", "Common"), 1)
+    hero["full_name"] = build_hero_full_name(hero)
+    remove_user_nemesis(ctx.author.id)
+
+    await ctx.send(
+        f"You finished the Nemesis in a final strike. Its rarity has risen to **{hero['rarity']}** and the threat is gone forever."
+    )
+
+
+@bot.command(name="RecruitGP")
+async def recruit_gp(ctx):
+    nemesis = get_user_nemesis(ctx.author.id)
+    if not nemesis or not nemesis.get("pending_finish"):
+        await ctx.send("You have no defeated Nemesis available for recruitment.")
+        return
+
+    hero = nemesis.get("hero", {})
+    hero["rarity"] = increase_rarity_by_steps(hero.get("rarity", "Common"), 3)
+    hero["full_name"] = build_hero_full_name(hero)
+    hero["is_nemesis"] = True
+    hero["nemesis_recruited_at"] = datetime.datetime.utcnow().isoformat()
+    hero["nemesis_note"] = "Recruited from a defeated Nemesis."
+    add_hero_to_user(ctx.author.id, hero)
+    remove_user_nemesis(ctx.author.id)
+
+    await ctx.send(
+        f"The Nemesis has been recruited into your collection as a hero of rarity **{hero['rarity']}**. It now carries the mark of its dark origin."
+    )
+
+
+@bot.command(name="NemisisGP")
+async def nemesis_gp(ctx):
+    nemesis = get_user_nemesis(ctx.author.id)
+    if not nemesis:
+        await ctx.send("You do not currently have an active Nemesis.")
+        return
+
+    embed = discord.Embed(title="🕯️ Nemesis Status", color=0x551a8b)
+    hero = nemesis.get("hero", {})
+    embed.add_field(name="Nemesis", value=hero.get("full_name", "Unknown"), inline=False)
+    embed.add_field(name="Victories", value=f"{nemesis.get('victories', 0)} / {NEMESIS_REQUIRED_VICTORIES}", inline=True)
+    embed.add_field(name="Started", value=nemesis.get("started_at", "Unknown"), inline=True)
+    next_hunt = nemesis.get("next_hunt_at")
+    if next_hunt:
+        embed.add_field(name="Next Hunt", value=next_hunt, inline=False)
+    if nemesis.get("reload_reason"):
+        embed.add_field(name="Notes", value=nemesis.get("reload_reason"), inline=False)
+    if nemesis.get("pending_hunt"):
+        hunt = nemesis["pending_hunt"]
+        if hunt.get("status") == "waiting_choice":
+            embed.add_field(name="Hunt", value="A Nemesis hunt is active. Use `!HideGP` or `!ConfrontGP`.", inline=False)
+        elif hunt.get("status") == "guessing":
+            embed.add_field(name="Hunt", value=f"Hunt in progress — {hunt.get('successes', 0)} / {hunt.get('required_successes', 3)} successes.", inline=False)
+    if nemesis.get("hide_debuff"):
+        embed.add_field(name="Debuff", value="A Nemesis curse weakens your next hero roll.", inline=False)
+
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="HideGP")
+async def hide_gp(ctx):
+    nemesis = get_user_nemesis(ctx.author.id)
+    if not nemesis or not nemesis.get("pending_hunt") or nemesis["pending_hunt"].get("status") != "waiting_choice":
+        await ctx.send("There is no active Nemesis hunt to hide from.")
+        return
+
+    nemesis["hide_debuff"] = {
+        "expires_at": (datetime.datetime.utcnow() + datetime.timedelta(minutes=30)).isoformat(),
+        "rarity_penalty": 0.96,
+        "class_penalty": 0.96,
+        "description": "Nemesis' shadow unsettles your next hero creation.",
+    }
+    nemesis.pop("pending_hunt", None)
+    set_user_nemesis(ctx.author.id, nemesis)
+
+    await ctx.send(
+        "You vanish into the shadows. The Nemesis still hunts you, but your hero-making is weakened for 30 minutes."
+    )
+
+
+@bot.command(name="ConfrontGP")
+async def confront_gp(ctx):
+    nemesis = get_user_nemesis(ctx.author.id)
+    if not nemesis or not nemesis.get("pending_hunt") or nemesis["pending_hunt"].get("status") != "waiting_choice":
+        await ctx.send("There is no active Nemesis hunt to confront.")
+        return
+
+    hunt = nemesis["pending_hunt"]
+    hunt["status"] = "guessing"
+    hunt["attempts"] = 0
+    hunt["successes"] = 0
+    hunt["required_successes"] = 3
+    hunt["max_attempts"] = 7
+    hunt["started_at"] = datetime.datetime.utcnow().isoformat()
+    set_user_nemesis(ctx.author.id, nemesis)
+
+    await ctx.send(
+        "You choose to confront the Nemesis. Guess its moves 3 times before 7 attempts are up. Reply with Strike or Shield."
+    )
 
 
 @bot.command(name="HeroSpeakGD")
@@ -2385,17 +3049,58 @@ async def check_inv_gp(ctx):
 
 
 @bot.command(name="ConsumeGP")
-async def consume_gp(ctx, item_id: int):
+async def consume_gp(ctx, item_id: int, hero_id: int = None):
     user_id_str = str(ctx.author.id)
-    active_boost = load_user_boosts().get(user_id_str)
-    if active_boost:
-        await ctx.send("You already have an active Adventures Exchange boost waiting for your next hero roll. Use it before consuming another item.")
-        return
-
     items = get_user_items(ctx.author.id)
     item = next((it for it in items if it.get("id") == item_id), None)
     if not item:
         await ctx.send(f"No item with ID **{item_id}** was found in your Adventures Exchange inventory.")
+        return
+
+    if item["type"] == "evolution":
+        if hero_id is None:
+            await ctx.send(f"To consume **{item['name']}**, you must specify a hero ID: `!ConsumeGP {item_id} <hero_id>`")
+            return
+        
+        heroes = load_user_heroes()
+        user_heroes = heroes.get(user_id_str, [])
+        hero = next((h for h in user_heroes if h.get("id") == hero_id), None)
+        if not hero:
+            await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
+            return
+        
+        # Check if hero is Pseudo+ rarity
+        if not hero.get("rarity", "").startswith("Pseudo"):
+            await ctx.send(f"The Evolution Stone can only be used on Pseudo+ rarity heroes. **#{hero_id}** `{hero['full_name']}` is {hero.get('rarity', 'Unknown')} rarity.")
+            return
+        
+        element = hero.get("element", "")
+        class_name = hero.get("class", "")
+        
+        if element not in EVOLUTION_TITLES or class_name not in EVOLUTION_TITLES[element]:
+            await ctx.send(f"No evolution title available for {element} {class_name} heroes.")
+            return
+        
+        new_title = EVOLUTION_TITLES[element][class_name]
+        old_title = hero.get("class_title", class_name)
+        
+        # Update hero's class_title
+        hero["class_title"] = new_title
+        hero["full_name"] = build_hero_full_name(hero)
+        
+        save_user_heroes(heroes)
+        remove_item_from_user(ctx.author.id, item_id)
+        
+        await ctx.send(
+            f"You used **{item['name']}** on **#{hero_id}** `{hero['full_name']}`!\n"
+            f"Title evolved from **{old_title}** to **{new_title}**."
+        )
+        return
+
+    # Original logic for other item types
+    active_boost = load_user_boosts().get(user_id_str)
+    if active_boost:
+        await ctx.send("You already have an active Adventures Exchange boost waiting for your next hero roll. Use it before consuming another item.")
         return
 
     removed_item = remove_item_from_user(ctx.author.id, item_id)
@@ -2618,6 +3323,79 @@ async def force_gp_text(ctx, *, message: str):
     await send_global_announcement(message)
     await ctx.send("Message sent globally.")
 
+@bot.command(name="GodGiveItemGP")
+async def god_give_item_gp(ctx, item_code: str):
+    """Give a specific reward item to mrleave; admin-only."""
+    if ctx.author.name != "mrleave":
+        await ctx.send("Only the user named `mrleave` may use this command.")
+        return
+
+    item_code = item_code.strip().upper()
+    item_mapping = {
+        "ES": {"name": "Evolution Stone", "type": "evolution", "description": "A mystical stone that can evolve a hero's title based on their element and class.", "multiplier": 1.0},
+        "NL": {"name": "Natural Luck Stone", "type": "luck", "description": "Balanced overall luck boost from a solid victory.", "multiplier": 1.20},
+        "WL": {"name": "Weak Luck Stone", "type": "luck", "description": "Teensy overall luck boost from an easy victory.", "multiplier": 1.10},
+        "EL": {"name": "Enchanted Luck Stone", "type": "luck", "description": "Strong overall luck boost from a hard-fought victory.", "multiplier": 1.30},
+        "ET": {"name": "Elite Training Order", "type": "class", "description": "Strong class training boost from a hard-fought victory.", "multiplier": 1.30},
+        "NT": {"name": "Normal Training Order", "type": "class", "description": "Balanced class training boost from a solid victory.", "multiplier": 1.20},
+        "WT": {"name": "Weak Training Order", "type": "class", "description": "Teensy class training boost from an easy victory.", "multiplier": 1.10},
+    }
+
+    item_data = item_mapping.get(item_code)
+    if not item_data:
+        valid_keys = ", ".join(sorted(item_mapping.keys()))
+        await ctx.send(f"Invalid item code. Valid options are: {valid_keys}.")
+        return
+
+    item_data["created_at"] = datetime.datetime.utcnow().isoformat()
+    add_item_to_user(ctx.author.id, item_data)
+
+    await ctx.send(f"Granted **{item_data['name']}** to **{ctx.author.name}**.")
+
+@bot.command(name="ForceRA")
+async def force_ra(ctx, encounter_type: str):
+    """Force a specific encounter type for the next !RAGodPool; only mrleave may use this."""
+    if ctx.author.name != "mrleave":
+        await ctx.send("Only the user named `mrleave` may use this command.")
+        return
+
+    valid_types = {"N": "Nemesis", "SO": "Sought Out", "R": "Regular"}
+    if encounter_type.upper() not in valid_types:
+        await ctx.send(f"Invalid encounter type. Valid types: {', '.join(f'{k} ({v})' for k, v in valid_types.items())}")
+        return
+
+    global FORCED_ENCOUNTER_TYPE
+    FORCED_ENCOUNTER_TYPE = encounter_type.upper()
+    
+    await ctx.send(f"Next !RAGodPool will force a **{valid_types[encounter_type.upper()]}** encounter.")
+
+@bot.command(name="GodCmds")
+async def god_cmds(ctx):
+    """List all admin commands; only mrleave may use this."""
+    if ctx.author.name != "mrleave":
+        await ctx.send("Only the user named `mrleave` may use this command.")
+        return
+
+    admin_commands = [
+        "!ForceRA <type> — Force the next !RAGodPool to spawn a specific encounter type (N/Nemesis, SO/Sought Out, R/Regular)",
+        "!GodGiveItemGP <code> — Give mrleave a reward item by code (ES, NL, WL, EL, ET, NT, WT)",
+        "!ForceGPText <message> — Force the bot to send a global announcement",
+        "!ResetEvent — Reset the event timer and choose a new event",
+        "!GodPool <message> — Send a message as the bot in the current channel",
+        "!CH_ <hero details> — Create a hero with custom details (admin creation)",
+    ]
+    
+    embed = discord.Embed(
+        title="Admin Commands",
+        description="These commands are restricted to mrleave only.",
+        color=0xff0000
+    )
+    
+    for cmd in admin_commands:
+        embed.add_field(name=cmd.split(" — ")[0], value=cmd.split(" — ")[1], inline=False)
+    
+    await ctx.send(embed=embed)
+
 @bot.command(name="Dishero")
 async def dishero(ctx, hero_number: int):
     """Delete a specific hero from the user's collection by its listed number."""
@@ -2709,13 +3487,18 @@ async def on_message(message):
                 shiny_chance,
             )
 
+            nemesis_debuff = get_nemesis_debuff(message.author.id)
+            if nemesis_debuff:
+                class_roll *= nemesis_debuff.get("class_penalty", 1.0)
+
             active_boost = pop_user_boost(message.author.id)
             boost_used_text = None
             if active_boost and active_boost.get("type") == "class":
                 class_roll *= active_boost.get("multiplier", 1.0)
                 boost_used_text = active_boost.get("name")
 
-            total_score = align_roll * div_roll * elem_roll * class_roll
+            rarity_penalty = nemesis_debuff.get("rarity_penalty", 1.0) if nemesis_debuff else 1.0
+            total_score = align_roll * div_roll * elem_roll * class_roll * rarity_penalty
 
             if active_boost and active_boost.get("type") == "luck":
                 total_score *= active_boost.get("multiplier", 1.0)
@@ -2917,5 +3700,82 @@ async def on_message(message):
         except Exception as e:
             await message.channel.send(f"Error creating divine hero: {e}")
 
+    choice = message.content.strip().title()
+    if choice in NEMESIS_GUESS_OPTIONS:
+        state = load_ra_encounter_state()
+        active = state.get("active", {})
+        encounter = active.get(str(message.author.id))
+
+        if encounter and encounter.get("special_type") == "nemesis_challenge":
+            challenge = encounter.get("challenge", {})
+            if not challenge.get("pending") or challenge.get("hero_id") is None:
+                await message.channel.send("You must first begin the Nemesis encounter with `!FaceRA <Encounter ID> <Hero ID>`.")
+                return
+
+            actual_move = random.choice(NEMESIS_GUESS_OPTIONS)
+            challenge["attempts"] = challenge.get("attempts", 0) + 1
+            challenge["last_actual"] = actual_move
+            challenge["last_guess"] = choice
+
+            if choice == actual_move:
+                nemesis_data = add_nemesis_victory(message.author.id)
+                remove_user_ra_encounter(state, message.author.id)
+                msg = f"Your hero guessed correctly! The Nemesis falters with **{actual_move}**."
+                if nemesis_data and nemesis_data.get("pending_finish"):
+                    msg += "\nThe Nemesis has been defeated. Use `!KillGP` or `!RecruitGP` to finish the saga."
+                await message.channel.send(msg)
+                return
+
+            guesses_left = challenge.get("remaining_guesses", 3) - challenge["attempts"]
+            if guesses_left <= 0:
+                remove_user_ra_encounter(state, message.author.id)
+                await message.channel.send(
+                    f"The Nemesis struck true with **{actual_move}**. Your guesses are spent and the encounter ends in failure."
+                )
+                return
+
+            active[str(message.author.id)] = encounter
+            state["active"] = active
+            save_ra_encounter_state(state)
+            await message.channel.send(
+                f"Incorrect — the Nemesis chose **{actual_move}**. You have **{guesses_left}** guesses left. Try again with Strike or Shield."
+            )
+            return
+
+        nemesis_data = get_user_nemesis(message.author.id)
+        if nemesis_data and nemesis_data.get("pending_hunt") and nemesis_data["pending_hunt"].get("status") == "guessing":
+            hunt = nemesis_data["pending_hunt"]
+            actual_move = random.choice(NEMESIS_GUESS_OPTIONS)
+            hunt["attempts"] = hunt.get("attempts", 0) + 1
+            if choice == actual_move:
+                hunt["successes"] = hunt.get("successes", 0) + 1
+                if hunt["successes"] >= hunt.get("required_successes", 3):
+                    add_nemesis_victory(message.author.id)
+                    nemesis_data.pop("pending_hunt", None)
+                    set_user_nemesis(message.author.id, nemesis_data)
+                    msg = f"You predicted the Nemesis' move correctly! The hunt is broken with **{actual_move}**."
+                    if nemesis_data.get("pending_finish"):
+                        msg += "\nThe Nemesis has been defeated. Use `!KillGP` or `!RecruitGP` to finish the saga."
+                    await message.channel.send(msg)
+                    return
+                set_user_nemesis(message.author.id, nemesis_data)
+                await message.channel.send(
+                    f"Correct! The Nemesis flinches with **{actual_move}**. Successes: **{hunt['successes']}** / {hunt['required_successes']}. Attempts left: **{hunt['max_attempts'] - hunt['attempts']}**."
+                )
+                return
+
+            if hunt["attempts"] >= hunt.get("max_attempts", 7):
+                nemesis_data.pop("pending_hunt", None)
+                set_user_nemesis(message.author.id, nemesis_data)
+                await message.channel.send(
+                    f"The Nemesis outmaneuvered you with **{actual_move}**. Your hunt attempt has failed."
+                )
+                return
+
+            set_user_nemesis(message.author.id, nemesis_data)
+            await message.channel.send(
+                f"Wrong again — the Nemesis chose **{actual_move}**. Successes: **{hunt.get('successes', 0)}** / {hunt.get('required_successes', 3)}. Attempts left: **{hunt['max_attempts'] - hunt['attempts']}**."
+            )
+            return
 
 bot.run(TOKEN)
