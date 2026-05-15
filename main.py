@@ -974,6 +974,19 @@ def get_user_items(user_id):
     return items.get(str(user_id), [])
 
 
+def get_next_item_id(user_id):
+    items = get_user_items(user_id)
+    max_id = 0
+    for item in items:
+        try:
+            item_id = int(item.get("id", 0))
+            if item_id > max_id:
+                max_id = item_id
+        except (TypeError, ValueError):
+            continue
+    return max_id + 1
+
+
 def set_user_boost(user_id, boost_data):
     boosts = load_user_boosts()
     boosts[str(user_id)] = boost_data
@@ -3014,9 +3027,14 @@ async def trade_hero_god_pool(ctx, hero_id: int):
         "created_at": datetime.datetime.utcnow().isoformat(),
     }
 
+    try:
+        add_item_to_user(ctx.author.id, item_data)
+    except Exception as e:
+        await ctx.send("Unable to complete the trade due to an internal error. Your hero was not traded.")
+        return
+
     heroes[user_id_str] = [h for h in user_heroes if h.get("id") != hero_id]
     save_user_heroes(heroes)
-    add_item_to_user(ctx.author.id, item_data)
 
     state["trade_counts"][user_id_str] = user_trades + 1
     save_emporium_state(state)
@@ -3069,12 +3087,12 @@ async def consume_gp(ctx, item_id: int, hero_id: int = None):
             await ctx.send(f"No hero with ID **{hero_id}** found in your collection.")
             return
         
-        # Check if hero is Pseudo+ rarity
-        if not hero.get("rarity", "").startswith("Pseudo"):
+        rarity_order = get_rarity_order()
+        if rarity_order.get(hero.get("rarity", ""), -1) < rarity_order.get("Pseudo", 0):
             await ctx.send(f"The Evolution Stone can only be used on Pseudo+ rarity heroes. **#{hero_id}** `{hero['full_name']}` is {hero.get('rarity', 'Unknown')} rarity.")
             return
-        
-        element = hero.get("element", "")
+
+        element = hero.get("element_raw", hero.get("element", ""))
         class_name = hero.get("class", "")
         
         if element not in EVOLUTION_TITLES or class_name not in EVOLUTION_TITLES[element]:
